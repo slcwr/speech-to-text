@@ -9,9 +9,11 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { AudioService } from './audio.service';
 
 @Controller('audio')
 export class AudioController {
+  constructor(private readonly audioService: AudioService) {}
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -42,17 +44,27 @@ export class AudioController {
       },
     }),
   )
-  uploadAudioFile(@UploadedFile() file: Express.Multer.File) {
+  async uploadAudioFile(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
       throw new HttpException('No file uploaded', HttpStatus.BAD_REQUEST);
     }
 
-    return {
-      message: 'Audio file uploaded successfully',
-      filename: file.filename,
-      originalname: file.originalname,
-      size: file.size,
-      path: file.path,
-    };
+    try {
+      // WebMからWAVに変換
+      const result = await this.audioService.processAudioUpload(file);
+      
+      return {
+        message: result.message,
+        filename: result.wavFile,
+        originalname: file.originalname,
+        size: file.size,
+        path: `uploads/${result.wavFile}`,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Audio processing failed',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }

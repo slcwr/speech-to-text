@@ -1,40 +1,20 @@
 'use client';
 
-import { useState } from 'react';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 
 export default function AudioRecorder() {
-  const [isUploading, setIsUploading] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [uploadResult, setUploadResult] = useState<any>(null);
-  
   const {
     isRecording,
     isPaused,
     recordingTime,
     audioBlob,
+    uploadStatus,
+    uploadMessage,
     startRecording,
     stopRecording,
     pauseRecording,
     resumeRecording,
-    downloadWavFile,
-    uploadWavFile,
   } = useAudioRecorder();
-
-  const handleUpload = async () => {
-    setIsUploading(true);
-    setUploadResult(null);
-    
-    try {
-      const result = await uploadWavFile();
-      setUploadResult(result);
-    } catch (error) {
-      console.error('Upload failed:', error);
-      setUploadResult({ error: 'アップロードに失敗しました' });
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -99,39 +79,22 @@ export default function AudioRecorder() {
               お使いのブラウザは音声再生をサポートしていません。
             </audio>
           </div>
-          <div className="flex space-x-4">
-            <button
-              onClick={() => downloadWavFile()}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded font-semibold transition-colors"
-            >
-              WAVファイルとしてダウンロード
-            </button>
-            <button
-              onClick={handleUpload}
-              disabled={isUploading}
-              className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white px-6 py-2 rounded font-semibold transition-colors"
-            >
-              {isUploading ? 'アップロード中...' : 'サーバーにアップロード'}
-            </button>
+          <div className="mt-4">
+            {uploadStatus === 'uploading' && (
+              <p className="text-blue-600">アップロード中...</p>
+            )}
+            {uploadStatus === 'success' && (
+              <p className="text-green-600">{uploadMessage}</p>
+            )}
+            {uploadStatus === 'error' && (
+              <p className="text-red-600">{uploadMessage}</p>
+            )}
+            {uploadStatus === 'idle' && (
+              <p className="text-sm text-gray-600">
+                録音が完了すると自動的にサーバーに保存されます
+              </p>
+            )}
           </div>
-          
-          {uploadResult && (
-            <div className="mt-4 p-4 rounded-lg bg-gray-100">
-              {uploadResult.error ? (
-                <p className="text-red-600">{uploadResult.error}</p>
-              ) : (
-                <div>
-                  <p className="text-green-600 font-semibold">アップロード成功！</p>
-                  <p className="text-sm text-gray-600">
-                    ファイル名: {uploadResult.filename}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    サイズ: {(uploadResult.size / 1024).toFixed(2)} KB
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>

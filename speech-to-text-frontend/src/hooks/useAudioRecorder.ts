@@ -5,6 +5,8 @@ interface AudioRecorderState {
   isPaused: boolean;
   recordingTime: number;
   audioBlob: Blob | null;
+  uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
+  uploadMessage?: string;
 }
 
 interface AudioRecorderHook extends AudioRecorderState {
@@ -23,6 +25,7 @@ export const useAudioRecorder = (): AudioRecorderHook => {
     isPaused: false,
     recordingTime: 0,
     audioBlob: null,
+    uploadStatus: 'idle',
   });
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -67,11 +70,41 @@ export const useAudioRecorder = (): AudioRecorderHook => {
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(chunksRef.current, { 
           type: 'audio/webm;codecs=opus' 
         });
-        setState(prev => ({ ...prev, audioBlob }));
+        setState(prev => ({ ...prev, audioBlob, uploadStatus: 'uploading' }));
+        
+        // WebM BlobをそのままバックエンドにアップロードI
+        try {
+          const formData = new FormData();
+          formData.append('file', audioBlob, 'recording.webm');
+
+          const response = await fetch('http://localhost:3001/audio/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error('Upload failed');
+          }
+
+          const result = await response.json();
+          console.log('録音ファイルが自動的にアップロードされました:', result);
+          setState(prev => ({ 
+            ...prev, 
+            uploadStatus: 'success',
+            uploadMessage: `ファイルが正常にアップロードされました: ${result.filename}`
+          }));
+        } catch (error) {
+          console.error('自動アップロードエラー:', error);
+          setState(prev => ({ 
+            ...prev, 
+            uploadStatus: 'error',
+            uploadMessage: 'アップロードに失敗しました'
+          }));
+        }
       };
 
       mediaRecorder.start();
@@ -83,6 +116,8 @@ export const useAudioRecorder = (): AudioRecorderHook => {
         isPaused: false,
         recordingTime: 0,
         audioBlob: null,
+        uploadStatus: 'idle',
+        uploadMessage: undefined,
       }));
     } catch (error) {
       console.error('録音開始エラー:', error);
