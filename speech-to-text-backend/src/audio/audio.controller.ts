@@ -52,7 +52,7 @@ export class AudioController {
     try {
       // WebMからWAVに変換
       const result = await this.audioService.processAudioUpload(file);
-      
+
       return {
         message: result.message,
         filename: result.wavFile,
@@ -60,11 +60,12 @@ export class AudioController {
         size: file.size,
         path: `uploads/${result.wavFile}`,
       };
-    } catch (error) {
-      throw new HttpException(
-        error.message || 'Audio processing failed',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+    } catch (error: unknown) {
+      const errorMessage =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? (error as { message?: string }).message || 'Audio processing failed'
+          : 'Audio processing failed';
+      throw new HttpException(errorMessage, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

@@ -1,16 +1,18 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable } from '@nestjs/common';
-import * as ffmpeg from 'fluent-ffmpeg';
-import * as ffmpegPath from '@ffmpeg-installer/ffmpeg';
-import { promises as fs } from 'fs';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { join } from 'path';
+import * as ffmpeg from 'fluent-ffmpeg';
 
-ffmpeg.setFfmpegPath(ffmpegPath.path);
+// ffmpegのパスを設定
+(ffmpeg as any).setFfmpegPath(ffmpegInstaller.path);
 
 @Injectable()
 export class AudioService {
   async convertWebmToWav(inputPath: string, outputPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      ffmpeg(inputPath)
+      (ffmpeg as any)(inputPath)
         .toFormat('wav')
         .audioCodec('pcm_s16le')
         .audioFrequency(44100)
@@ -19,7 +21,7 @@ export class AudioService {
           console.log('変換完了:', outputPath);
           resolve();
         })
-        .on('error', (err) => {
+        .on('error', (err: Error) => {
           console.error('変換エラー:', err);
           reject(err);
         })
@@ -49,7 +51,9 @@ export class AudioService {
         message: 'Audio file converted to WAV successfully',
       };
     } catch (error) {
-      throw new Error(`Audio conversion failed: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(`Audio conversion failed: ${errorMessage}`);
     }
   }
 }
