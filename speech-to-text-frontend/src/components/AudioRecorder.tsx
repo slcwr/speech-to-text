@@ -10,6 +10,7 @@ export default function AudioRecorder() {
     audioBlob,
     uploadStatus,
     uploadMessage,
+    transcription,
     startRecording,
     stopRecording,
     pauseRecording,
@@ -95,6 +96,12 @@ export default function AudioRecorder() {
               </p>
             )}
           </div>
+          {transcription && (
+            <div className="mt-4 bg-blue-50 p-4 rounded-lg">
+              <h3 className="font-semibold mb-2 text-gray-700">文字起こし結果:</h3>
+              <p className="text-gray-800 whitespace-pre-wrap">{transcription}</p>
+            </div>
+          )}
         </div>
       )}
     </div>

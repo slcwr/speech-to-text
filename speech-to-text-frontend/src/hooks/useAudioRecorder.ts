@@ -7,6 +7,7 @@ interface AudioRecorderState {
   audioBlob: Blob | null;
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
   uploadMessage?: string;
+  transcription?: string;
 }
 
 interface AudioRecorderHook extends AudioRecorderState {
@@ -95,7 +96,8 @@ export const useAudioRecorder = (): AudioRecorderHook => {
           setState(prev => ({ 
             ...prev, 
             uploadStatus: 'success',
-            uploadMessage: `ファイルが正常にアップロードされました: ${result.filename}`
+            uploadMessage: `ファイルが正常にアップロードされました: ${result.filename}`,
+            transcription: result.transcription
           }));
         } catch (error) {
           console.error('自動アップロードエラー:', error);

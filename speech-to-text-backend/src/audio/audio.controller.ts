@@ -51,7 +51,11 @@ export class AudioController {
 
     try {
       // WebMからWAVに変換
-      const result = await this.audioService.processAudioUpload(file);
+      const result: {
+        message: string;
+        wavFile: string;
+        transcription: string;
+      } = await this.audioService.processAudioUpload(file);
 
       return {
         message: result.message,
@@ -59,6 +63,7 @@ export class AudioController {
         originalname: file.originalname,
         size: file.size,
         path: `uploads/${result.wavFile}`,
+        transcription: result.transcription,
       };
     } catch (error: unknown) {
       const errorMessage =

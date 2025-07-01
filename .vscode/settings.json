@@ -1,0 +1,8 @@
+{
+  "plantuml.java": "/usr/bin/java",
+  "plantuml.render": "PlantUMLServer",
+  "plantuml.server": "https://www.plantuml.com/plantuml",
+  "plantuml.exportFormat": "png",
+  "plantuml.exportOutDir": "./docs/diagrams",
+  "plantuml.previewAutoUpdate": true
+}
