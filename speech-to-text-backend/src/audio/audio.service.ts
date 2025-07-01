@@ -1,15 +1,17 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable } from '@nestjs/common';
-import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+import * as ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { join } from 'path';
 import * as ffmpeg from 'fluent-ffmpeg';
+import { GeminiService } from '../gemini/gemini.service';
 
 // ffmpegのパスを設定
 (ffmpeg as any).setFfmpegPath(ffmpegInstaller.path);
 
 @Injectable()
 export class AudioService {
+  constructor(private readonly geminiService: GeminiService) {}
   async convertWebmToWav(inputPath: string, outputPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
       (ffmpeg as any)(inputPath)
@@ -33,6 +35,7 @@ export class AudioService {
     originalFile: string;
     wavFile: string;
     message: string;
+    transcription: string;
   }> {
     const webmPath = file.path;
     const wavFileName = file.filename.replace(/\.[^/.]+$/, '.wav');
@@ -42,18 +45,22 @@ export class AudioService {
       // WebMからWAVに変換
       await this.convertWebmToWav(webmPath, wavPath);
 
+      // Geminiで音声をテキスト化
+      const transcription = await this.geminiService.transcribeAudio(wavPath);
+
       // 元のWebMファイルを削除（オプション）
       // await fs.unlink(webmPath);
 
       return {
         originalFile: file.filename,
         wavFile: wavFileName,
-        message: 'Audio file converted to WAV successfully',
+        message: 'Audio file converted to WAV and transcribed successfully',
+        transcription,
       };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      throw new Error(`Audio conversion failed: ${errorMessage}`);
+      throw new Error(`Audio processing failed: ${errorMessage}`);
     }
   }
 }
