@@ -1,0 +1,113 @@
+# Speech-to-Text アプリケーション シーケンス図
+
+```plantuml
+@startuml
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam sequence {
+    ArrowColor #005500
+    ActorBorderColor #005500
+    LifeLineBorderColor #005500
+    ParticipantBorderColor #005500
+    ParticipantBackgroundColor #DDFFDD
+    ActorBackgroundColor #DDFFDD
+}
+
+title Speech-to-Text アプリケーション処理シーケンス
+
+actor "ユーザー" as User
+box "フロントエンド (Next.js)" #LightBlue
+    participant "AudioRecorder\nComponent" as AudioRecorder
+    participant "useAudioRecorder\nHook" as Hook
+    participant "MediaRecorder\nAPI" as MediaRecorder
+end box
+
+box "バックエンド (NestJS)" #LightGreen
+    participant "AudioController" as Controller
+    participant "AudioService" as Service
+    participant "FFmpeg" as FFmpeg
+end box
+
+database "File System\n(uploads/)" as FileSystem
+
+== 初期化 ==
+User -> AudioRecorder: ページアクセス
+AudioRecorder -> Hook: useAudioRecorder()
+Hook -> AudioRecorder: 初期状態を返す
+
+== 録音開始 ==
+User -> AudioRecorder: 「録音開始」クリック
+AudioRecorder -> Hook: startRecording()
+Hook -> MediaRecorder: navigator.mediaDevices.getUserMedia()
+MediaRecorder --> Hook: MediaStream
+
+Hook -> MediaRecorder: new MediaRecorder(stream)
+Hook -> Hook: chunksRef = []
+Hook -> MediaRecorder: mediaRecorder.start()
+Hook -> AudioRecorder: setState({isRecording: true})
+AudioRecorder -> User: 録音中UI表示
+
+== 録音中 ==
+loop 録音中
+    MediaRecorder -> Hook: ondataavailable(event)
+    Hook -> Hook: chunksRef.push(event.data)
+    
+    loop 1秒ごと
+        Hook -> AudioRecorder: recordingTime++
+        AudioRecorder -> User: 時間表示更新
+    end
+end
+
+== 録音停止 ==
+User -> AudioRecorder: 「停止」クリック
+AudioRecorder -> Hook: stopRecording()
+Hook -> MediaRecorder: mediaRecorder.stop()
+MediaRecorder -> Hook: onstop()
+
+== 自動アップロード処理 ==
+Hook -> Hook: new Blob(chunksRef, {type: 'audio/webm'})
+Hook -> AudioRecorder: setState({uploadStatus: 'uploading'})
+AudioRecorder -> User: "アップロード中..." 表示
+
+Hook -> Hook: FormData.append('file', blob, 'recording.webm')
+Hook -> Controller: POST /audio/upload\n(FormData)
+
+Controller -> Controller: FileInterceptor処理
+note right: Multerによる\nファイル受信
+
+Controller -> Service: processAudioUpload(file)
+Service -> Service: webmPath = file.path
+Service -> Service: wavPath = 'audio-{timestamp}.wav'
+
+Service -> FFmpeg: convertWebmToWav(webmPath, wavPath)
+FFmpeg -> FFmpeg: WebM デコード
+FFmpeg -> FFmpeg: WAV エンコード
+note right: PCM 16bit\n44100Hz\n2ch
+
+FFmpeg -> FileSystem: WAVファイル保存
+FFmpeg --> Service: 変換完了
+
+Service --> Controller: {wavFile, message}
+Controller --> Hook: HTTP 200\n{filename, path, size}
+
+Hook -> AudioRecorder: setState({\nuploadStatus: 'success',\nuploadMessage: '...'\n})
+AudioRecorder -> User: "アップロード成功" 表示
+
+== エラーハンドリング ==
+alt 録音エラー
+    MediaRecorder --> Hook: Error
+    Hook -> AudioRecorder: エラー状態
+    AudioRecorder -> User: エラー表示
+else アップロードエラー
+    Controller --> Hook: HTTP 4xx/5xx
+    Hook -> AudioRecorder: setState({uploadStatus: 'error'})
+    AudioRecorder -> User: "アップロード失敗" 表示
+else 変換エラー
+    FFmpeg --> Service: Error
+    Service --> Controller: throw Error
+    Controller --> Hook: HTTP 500
+    Hook -> AudioRecorder: エラー状態
+end
+
+@enduml
+```

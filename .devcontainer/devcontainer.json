@@ -1,6 +1,13 @@
 {
   "name": "voice-app-dev",
   "dockerFile": "Dockerfile",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "jebbs.plantuml"
+      ]
+    }
+  },
   "workspaceFolder": "/workspace/claude_practice",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
