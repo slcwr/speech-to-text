@@ -1,0 +1,151 @@
+@startuml
+!theme plain
+
+entity "users" as users {
+  * id : UUID <<PK>>
+  --
+  * email : VARCHAR(255) <<UK>>
+  * name : VARCHAR(100)
+  * created_at : TIMESTAMP WITH TIME ZONE
+  * updated_at : TIMESTAMP WITH TIME ZONE
+}
+
+entity "skill_sheets" as skill_sheets {
+  * id : UUID <<PK>>
+  --
+  * user_id : UUID <<FK>>
+  * file_path : VARCHAR(500)
+  * file_name : VARCHAR(255)
+  * skill_data : JSONB
+  * analysis_status : VARCHAR(20)
+  * created_at : TIMESTAMP WITH TIME ZONE
+  * updated_at : TIMESTAMP WITH TIME ZONE
+}
+
+entity "interview_sessions" as interview_sessions {
+  * id : UUID <<PK>>
+  --
+  * user_id : UUID <<FK>>
+  * skill_sheet_id : UUID <<FK>>
+  * session_status : VARCHAR(20)
+  * started_at : TIMESTAMP WITH TIME ZONE
+  * completed_at : TIMESTAMP WITH TIME ZONE
+  * created_at : TIMESTAMP WITH TIME ZONE
+  * updated_at : TIMESTAMP WITH TIME ZONE
+}
+
+entity "interview_questions" as interview_questions {
+  * id : UUID <<PK>>
+  --
+  * session_id : UUID <<FK>>
+  * question_type : VARCHAR(20)
+  * question_order : INTEGER
+  * question_data : JSONB
+  * created_at : TIMESTAMP WITH TIME ZONE
+}
+
+entity "interview_answers" as interview_answers {
+  * id : UUID <<PK>>
+  --
+  * question_id : UUID <<FK>>
+  * answer_data : JSONB
+  * answer_status : VARCHAR(20)
+  * started_at : TIMESTAMP WITH TIME ZONE
+  * completed_at : TIMESTAMP WITH TIME ZONE
+  * created_at : TIMESTAMP WITH TIME ZONE
+  * updated_at : TIMESTAMP WITH TIME ZONE
+}
+
+' リレーションシップ
+users ||--o{ skill_sheets : "1:N"
+users ||--o{ interview_sessions : "1:N"
+skill_sheets ||--o{ interview_sessions : "1:N"
+interview_sessions ||--o{ interview_questions : "1:N"
+interview_questions ||--|| interview_answers : "1:1"
+
+' 制約とインデックス情報
+note bottom of skill_sheets
+  **skill_data JSONB構造例:**
+  {
+    "technical_skills": ["JavaScript", "React"],
+    "experience_years": 3,
+    "projects": [...],
+    "strengths": [...],
+    "weaknesses": [...],
+    "problem_solving": {
+      "approach": "論理的思考を重視し、問題を細分化",
+      "examples": [
+        {
+          "situation": "レガシーシステムの性能問題",
+          "task": "ページ読み込み時間を50%短縮",
+          "action": "コード分析→ボトルネック特定→最適化",
+          "result": "3秒→1.5秒に改善、UX向上"
+        }
+      ],
+      "methodologies": ["PDCA", "5W1H", "ロジックツリー"],
+      "collaboration_style": "チームでのブレインストーミング"
+    }
+  }
+  
+  **インデックス:**
+  - GIN index on skill_data
+  - B-tree on experience_years
+  - GIN index on problem_solving
+end note
+
+note bottom of interview_questions
+  **question_data JSONB構造例:**
+  {
+    "text": "技術スキルについて教えてください",
+    "audio_url": "/audio/questions/uuid.wav",
+    "duration_seconds": 15,
+    "metadata": {
+      "difficulty": "medium",
+      "category": "technical_skills",
+      "based_on_problem_solving": true
+    }
+  }
+  
+  **question_type:**
+  - self_introduction
+  - motivation
+  - technical
+  - reverse (最大3つ)
+end note
+
+note bottom of interview_answers
+  **answer_data JSONB構造例:**
+  {
+    "text": "私の強みはReactを使った...",
+    "confidence_score": 0.95,
+    "transcription_segments": [...],
+    "audio_metadata": {
+      "duration_seconds": 120,
+      "sample_rate": 44100
+    },
+    "analysis": {
+      "key_points": [...],
+      "sentiment": "positive",
+      "fluency_score": 0.85,
+      "problem_solving_indicators": [
+        "論理的思考", "具体的事例", "結果重視"
+      ]
+    }
+  }
+end note
+
+note top of users
+  **制約:**
+  - email: UNIQUE
+  - id: UUID (自動生成)
+end note
+
+note top of interview_sessions
+  **session_status:**
+  - pending
+  - in_progress
+  - completed
+  - cancelled
+end note
+
+@enduml

@@ -50,7 +50,7 @@ SkillController -> InterviewService: processSkillSheet(file)
 
 == 2. スキルシート解析 ==
 InterviewService -> GenerativeModel: スキルシート内容解析
-note right: 技術スキル、経験年数、\nプロジェクト経験、\n得意分野、弱点を解析
+note right: 技術スキル、経験年数、\nプロジェクト経験、得意分野、\n弱点、課題解決能力を解析
 GenerativeModel --> InterviewService: 解析結果
 
 InterviewService -> SkillDB: 技術スキル情報保存
@@ -58,6 +58,7 @@ InterviewService -> SkillDB: 経験年数情報保存
 InterviewService -> SkillDB: プロジェクト経験保存
 InterviewService -> SkillDB: 得意分野保存
 InterviewService -> SkillDB: 弱点・改善点保存
+InterviewService -> SkillDB: 課題解決能力保存
 
 == 3. 面接質問生成 ==
 InterviewService -> GenerativeModel: 自己紹介質問生成
