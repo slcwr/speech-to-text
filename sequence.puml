@@ -1,4 +1,4 @@
-# Speech-to-Text アプリケーション シーケンス図
+# Webエンジニア面接システム シーケンス図
 
 ```plantuml
 @startuml
@@ -13,100 +13,170 @@ skinparam sequence {
     ActorBackgroundColor #DDFFDD
 }
 
-title Speech-to-Text アプリケーション処理シーケンス
+title Webエンジニア面接システム処理シーケンス
 
 actor "ユーザー" as User
 box "フロントエンド (Next.js)" #LightBlue
+    participant "SkillSheetUpload\nComponent" as UploadComponent
+    participant "InterviewApp\nComponent" as InterviewApp
     participant "AudioRecorder\nComponent" as AudioRecorder
     participant "useAudioRecorder\nHook" as Hook
     participant "MediaRecorder\nAPI" as MediaRecorder
 end box
 
 box "バックエンド (NestJS)" #LightGreen
-    participant "AudioController" as Controller
-    participant "AudioService" as Service
+    participant "SkillSheetController" as SkillController
+    participant "InterviewController" as InterviewController
+    participant "AudioController" as AudioController
+    participant "InterviewService" as InterviewService
+    participant "AudioService" as AudioService
+    participant "GenerativeModel\n(Gemini)" as GenerativeModel
     participant "FFmpeg" as FFmpeg
+end box
+
+box "データベース" #LightYellow
+    database "DB\n(スキルシート解析結果)" as SkillDB
+    database "DB\n(質問データ)" as QuestionDB
+    database "DB\n(回答データ)" as AnswerDB
 end box
 
 database "File System\n(uploads/)" as FileSystem
 
-== 初期化 ==
-User -> AudioRecorder: ページアクセス
-AudioRecorder -> Hook: useAudioRecorder()
-Hook -> AudioRecorder: 初期状態を返す
+== 1. スキルシート アップロード ==
+User -> UploadComponent: スキルシートファイル選択
+UploadComponent -> SkillController: POST /skillsheet/upload
+SkillController -> FileSystem: スキルシートファイル保存
+SkillController -> InterviewService: processSkillSheet(file)
 
-== 録音開始 ==
-User -> AudioRecorder: 「録音開始」クリック
+== 2. スキルシート解析 ==
+InterviewService -> GenerativeModel: スキルシート内容解析
+note right: 技術スキル、経験年数、\nプロジェクト経験、\n得意分野、弱点を解析
+GenerativeModel --> InterviewService: 解析結果
+
+InterviewService -> SkillDB: 技術スキル情報保存
+InterviewService -> SkillDB: 経験年数情報保存
+InterviewService -> SkillDB: プロジェクト経験保存
+InterviewService -> SkillDB: 得意分野保存
+InterviewService -> SkillDB: 弱点・改善点保存
+
+== 3. 面接質問生成 ==
+InterviewService -> GenerativeModel: 自己紹介質問生成
+GenerativeModel --> InterviewService: 自己紹介質問
+InterviewService -> QuestionDB: 自己紹介質問保存
+
+InterviewService -> GenerativeModel: 志望動機質問生成
+GenerativeModel --> InterviewService: 志望動機質問
+InterviewService -> QuestionDB: 志望動機質問保存
+
+InterviewService -> GenerativeModel: 技術質問生成（スキル解析結果に基づく）
+GenerativeModel --> InterviewService: 技術質問
+InterviewService -> QuestionDB: 技術質問保存
+
+InterviewService -> GenerativeModel: 逆質問生成（3つまで）
+GenerativeModel --> InterviewService: 逆質問リスト
+InterviewService -> QuestionDB: 逆質問保存
+
+InterviewService --> SkillController: 質問生成完了
+SkillController --> UploadComponent: 質問準備完了通知
+UploadComponent -> User: 面接開始ボタン表示
+
+== 4. 面接開始 ==
+User -> InterviewApp: 面接開始ボタンクリック
+InterviewApp -> InterviewController: GET /interview/start
+InterviewController -> QuestionDB: 自己紹介質問取得
+QuestionDB --> InterviewController: 自己紹介質問
+InterviewController --> InterviewApp: 自己紹介質問
+
+InterviewApp -> AudioRecorder: 音声再生（質問）
+AudioRecorder -> User: 音声で質問再生
+User -> AudioRecorder: 録音開始
+
+== 5. 回答録音・文字化（自己紹介） ==
 AudioRecorder -> Hook: startRecording()
 Hook -> MediaRecorder: navigator.mediaDevices.getUserMedia()
 MediaRecorder --> Hook: MediaStream
-
 Hook -> MediaRecorder: new MediaRecorder(stream)
-Hook -> Hook: chunksRef = []
 Hook -> MediaRecorder: mediaRecorder.start()
-Hook -> AudioRecorder: setState({isRecording: true})
-AudioRecorder -> User: 録音中UI表示
 
-== 録音中 ==
-loop 録音中
+loop 録音中（リアルタイム）
     MediaRecorder -> Hook: ondataavailable(event)
-    Hook -> Hook: chunksRef.push(event.data)
-    
-    loop 1秒ごと
-        Hook -> AudioRecorder: recordingTime++
-        AudioRecorder -> User: 時間表示更新
-    end
+    Hook -> AudioController: POST /audio/stream (chunk)
+    AudioController -> AudioService: processAudioChunk(chunk)
+    AudioService -> FFmpeg: WebM to WAV 変換（メモリ上）
+    AudioService -> GenerativeModel: 音声→テキスト変換
+    GenerativeModel --> AudioService: 文字化テキスト
+    AudioService -> AnswerDB: 回答データ保存（streaming）
+    AudioService --> AudioController: 文字化結果
+    AudioController --> Hook: 文字化テキスト
+    Hook -> InterviewApp: リアルタイム文字表示
+    InterviewApp -> User: 回答文字表示
 end
 
-== 録音停止 ==
-User -> AudioRecorder: 「停止」クリック
+User -> AudioRecorder: 回答終了ボタンクリック
 AudioRecorder -> Hook: stopRecording()
 Hook -> MediaRecorder: mediaRecorder.stop()
-MediaRecorder -> Hook: onstop()
+Hook -> AudioController: POST /audio/finalize
+AudioController -> AudioService: finalizeAnswer()
+AudioService -> AnswerDB: 回答完了フラグ更新
 
-== 自動アップロード処理 ==
-Hook -> Hook: new Blob(chunksRef, {type: 'audio/webm'})
-Hook -> AudioRecorder: setState({uploadStatus: 'uploading'})
-AudioRecorder -> User: "アップロード中..." 表示
+== 6. 志望動機質問 ==
+InterviewApp -> InterviewController: GET /interview/next
+InterviewController -> QuestionDB: 志望動機質問取得
+QuestionDB --> InterviewController: 志望動機質問
+InterviewController --> InterviewApp: 志望動機質問
 
-Hook -> Hook: FormData.append('file', blob, 'recording.webm')
-Hook -> Controller: POST /audio/upload\n(FormData)
+note right: 同様の録音・文字化プロセス
+InterviewApp -> AudioRecorder: 音声再生（質問）
+AudioRecorder -> User: 音声で質問再生
 
-Controller -> Controller: FileInterceptor処理
-note right: Multerによる\nファイル受信
+== 7. 技術質問 ==
+InterviewApp -> InterviewController: GET /interview/next
+InterviewController -> QuestionDB: 技術質問取得
+QuestionDB --> InterviewController: 技術質問
+InterviewController --> InterviewApp: 技術質問
 
-Controller -> Service: processAudioUpload(file)
-Service -> Service: webmPath = file.path
-Service -> Service: wavPath = 'audio-{timestamp}.wav'
+note right: 同様の録音・文字化プロセス
+InterviewApp -> AudioRecorder: 音声再生（質問）
+AudioRecorder -> User: 音声で質問再生
 
-Service -> FFmpeg: convertWebmToWav(webmPath, wavPath)
-FFmpeg -> FFmpeg: WebM デコード
-FFmpeg -> FFmpeg: WAV エンコード
-note right: PCM 16bit\n44100Hz\n2ch
+== 8. 逆質問（3つまで） ==
+loop 逆質問 (最大3回)
+    InterviewApp -> InterviewController: GET /interview/reverse-question
+    InterviewController -> QuestionDB: 逆質問取得
+    QuestionDB --> InterviewController: 逆質問
+    InterviewController --> InterviewApp: 逆質問
+    
+    InterviewApp -> AudioRecorder: 音声再生（逆質問）
+    AudioRecorder -> User: 音声で逆質問再生
+    
+    note right: 同様の録音・文字化プロセス
+    User -> AudioRecorder: 回答録音
+    AudioRecorder -> Hook: 録音・文字化処理
+    Hook -> AnswerDB: 回答保存
+end
 
-FFmpeg -> FileSystem: WAVファイル保存
-FFmpeg --> Service: 変換完了
-
-Service --> Controller: {wavFile, message}
-Controller --> Hook: HTTP 200\n{filename, path, size}
-
-Hook -> AudioRecorder: setState({\nuploadStatus: 'success',\nuploadMessage: '...'\n})
-AudioRecorder -> User: "アップロード成功" 表示
+== 9. 面接終了 ==
+InterviewApp -> InterviewController: POST /interview/complete
+InterviewController -> AnswerDB: 面接完了フラグ更新
+InterviewController --> InterviewApp: 面接完了通知
+InterviewApp -> User: 面接完了画面表示
 
 == エラーハンドリング ==
-alt 録音エラー
+alt スキルシートアップロードエラー
+    SkillController --> UploadComponent: HTTP 4xx/5xx
+    UploadComponent -> User: アップロードエラー表示
+else 質問生成エラー
+    GenerativeModel --> InterviewService: Error
+    InterviewService --> SkillController: 質問生成失敗
+    SkillController --> UploadComponent: エラー通知
+else 録音エラー
     MediaRecorder --> Hook: Error
     Hook -> AudioRecorder: エラー状態
-    AudioRecorder -> User: エラー表示
-else アップロードエラー
-    Controller --> Hook: HTTP 4xx/5xx
-    Hook -> AudioRecorder: setState({uploadStatus: 'error'})
-    AudioRecorder -> User: "アップロード失敗" 表示
-else 変換エラー
-    FFmpeg --> Service: Error
-    Service --> Controller: throw Error
-    Controller --> Hook: HTTP 500
-    Hook -> AudioRecorder: エラー状態
+    AudioRecorder -> User: 録音エラー表示
+else 音声変換エラー
+    FFmpeg --> AudioService: Error
+    AudioService --> AudioController: 変換エラー
+    AudioController --> Hook: エラー通知
 end
 
 @enduml
