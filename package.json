@@ -1,0 +1,19 @@
+{
+  "dependencies": {
+    "typeorm": "^0.3.25",
+    "pg": "^8.11.3",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.10.7",
+    "typescript": "^5.2.2",
+    "ts-node": "^10.9.1"
+  },
+  "scripts": {
+    "build": "tsc",
+    "migration:create": "typeorm migration:create",
+    "migration:generate": "typeorm migration:generate -d dist/database/data-source.js",
+    "migration:run": "npm run build && typeorm migration:run -d dist/database/data-source.js",
+    "migration:revert": "npm run build && typeorm migration:revert -d dist/database/data-source.js"
+  }
+}
