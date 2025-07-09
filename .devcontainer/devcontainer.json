@@ -1,21 +1,30 @@
 {
-  "name": "voice-app-dev",
-  "dockerFile": "Dockerfile",
+  "name": "speech-to-text-dev",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/speech-to-text",
   "customizations": {
     "vscode": {
       "extensions": [
-        "jebbs.plantuml"
-      ]
+        "jebbs.plantuml",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker",
+        "cweijan.vscode-postgresql-client2",
+        "firsttris.vscode-jest-runner",
+        "Anthropic.claude-code"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
     }
   },
-  "workspaceFolder": "/workspace/claude_practice",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "version": "20"
-    },
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+    }
   },
-  "forwardPorts": [3000, 3001, 5432],
-  "postCreateCommand": "npm install",
-  "remoteUser": "root"
+  "forwardPorts": [3000, 3001, 5432, 6379],
+  "postCreateCommand": "if [ -f package.json ]; then npm install; fi && if [ -d speech-to-text-backend ]; then cd speech-to-text-backend && npm install && cd ..; fi && if [ -d speech-to-text-frontend ]; then cd speech-to-text-frontend && npm install && cd ..; fi",
+  "remoteUser": "node"
 }

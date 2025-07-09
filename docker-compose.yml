@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .devcontainer
+      dockerfile: Dockerfile
+    volumes:
+      - .:/workspaces/speech-to-text:cached
+    command: sleep infinity
+    networks:
+      - speech-to-text-network
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/interview_db
+      - REDIS_URL=redis://redis:6379
+    # 作業ディレクトリを設定
+    working_dir: /workspaces/speech-to-text
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: interview_db
+    networks:
+      - speech-to-text-network
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - speech-to-text-network
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  speech-to-text-network:
+    driver: bridge
