@@ -10,7 +10,7 @@ declare module 'fluent-ffmpeg' {
   }
 
   function ffmpeg(input: string): FfmpegCommand;
-  
+
   namespace ffmpeg {
     export function setFfmpegPath(path: string): void;
   }
