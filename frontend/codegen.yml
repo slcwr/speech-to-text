@@ -1,0 +1,148 @@
+overwrite: true
+schema: "../backend/src/schema.gql"
+documents: 
+  - "src/graphql/mutations/auth.ts"
+  - "src/graphql/fragments/user.ts"
+generates:
+  # Global types
+  src/graphql/types/generated.ts:
+    plugins:
+      - "typescript"
+      - "typescript-operations"
+    config:
+      scalars:
+        DateTime: string
+        String: string
+        Int: number
+        Boolean: boolean
+        Float: number
+        ID: string
+      namingConvention:
+        typeNames: pascal-case#pascalCase
+        enumValues: upper-case#upperCase
+      avoidOptionals: true
+      maybeValue: T | null | undefined
+      inputMaybeValue: T | null | undefined
+      useTypeImports: true
+      skipTypename: false
+      onlyOperationTypes: false
+      preResolveTypes: true
+      mergeFragmentTypes: true
+      inlineFragmentTypes: "combine"
+      nonOptionalTypename: false
+      arrayInputCoercion: false
+      dedupeOperationSuffix: false
+      omitOperationSuffix: false
+      operationResultSuffix: ""
+      documentVariableSuffix: "Document"
+      fragmentVariableSuffix: "FragmentDoc"
+      documentVariablePrefix: ""
+      fragmentVariablePrefix: ""
+  
+  # Component-specific types  
+  src/app/login/types.ts:
+    documents: "src/graphql/mutations/auth.ts"
+    plugins:
+      - "typescript"
+      - "typescript-operations"
+    config:
+      scalars:
+        DateTime: string
+        String: string
+        Int: number
+        Boolean: boolean
+        Float: number
+        ID: string
+      namingConvention:
+        typeNames: pascal-case#pascalCase
+        enumValues: upper-case#upperCase
+      avoidOptionals: true
+      maybeValue: T | null | undefined
+      inputMaybeValue: T | null | undefined
+      useTypeImports: true
+      skipTypename: false
+      onlyOperationTypes: false
+      preResolveTypes: true
+      mergeFragmentTypes: true
+      inlineFragmentTypes: "combine"
+      nonOptionalTypename: false
+      arrayInputCoercion: false
+      dedupeOperationSuffix: false
+      omitOperationSuffix: false
+      operationResultSuffix: ""
+      documentVariableSuffix: "Document"
+      fragmentVariableSuffix: "FragmentDoc"
+      documentVariablePrefix: ""
+      fragmentVariablePrefix: ""
+  
+  src/app/register/types.ts:
+    documents: "src/graphql/mutations/auth.ts"
+    plugins:
+      - "typescript"
+      - "typescript-operations"
+    config:
+      scalars:
+        DateTime: string
+        String: string
+        Int: number
+        Boolean: boolean
+        Float: number
+        ID: string
+      namingConvention:
+        typeNames: pascal-case#pascalCase
+        enumValues: upper-case#upperCase
+      avoidOptionals: true
+      maybeValue: T | null | undefined
+      inputMaybeValue: T | null | undefined
+      useTypeImports: true
+      skipTypename: false
+      onlyOperationTypes: false
+      preResolveTypes: true
+      mergeFragmentTypes: true
+      inlineFragmentTypes: "combine"
+      nonOptionalTypename: false
+      arrayInputCoercion: false
+      dedupeOperationSuffix: false
+      omitOperationSuffix: false
+      operationResultSuffix: ""
+      documentVariableSuffix: "Document"
+      fragmentVariableSuffix: "FragmentDoc"
+      documentVariablePrefix: ""
+      fragmentVariablePrefix: ""
+  
+  src/app/dashboard/types.ts:
+    documents: 
+      - "src/graphql/mutations/auth.ts"
+      - "src/graphql/fragments/user.ts"
+    plugins:
+      - "typescript"
+      - "typescript-operations"
+    config:
+      scalars:
+        DateTime: string
+        String: string
+        Int: number
+        Boolean: boolean
+        Float: number
+        ID: string
+      namingConvention:
+        typeNames: pascal-case#pascalCase
+        enumValues: upper-case#upperCase
+      avoidOptionals: true
+      maybeValue: T | null | undefined
+      inputMaybeValue: T | null | undefined
+      useTypeImports: true
+      skipTypename: false
+      onlyOperationTypes: false
+      preResolveTypes: true
+      mergeFragmentTypes: true
+      inlineFragmentTypes: "combine"
+      nonOptionalTypename: false
+      arrayInputCoercion: false
+      dedupeOperationSuffix: false
+      omitOperationSuffix: false
+      operationResultSuffix: ""
+      documentVariableSuffix: "Document"
+      fragmentVariableSuffix: "FragmentDoc"
+      documentVariablePrefix: ""
+      fragmentVariablePrefix: ""
