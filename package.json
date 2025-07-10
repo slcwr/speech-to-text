@@ -25,16 +25,18 @@
     "@types/node": "^20.0.0",
     "typescript": "^5.2.2",
     "ts-node": "^10.9.1",
-    "superjson": "^1.13.1"
+    "superjson": "^1.13.1",
+    "concurrently": "^8.2.2"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "type-check": "tsc --noEmit",
-    "migration:create": "typeorm migration:create",
-    "migration:generate": "typeorm migration:generate -d dist/database/data-source.js",
-    "migration:run": "npm run build && typeorm migration:run -d dist/database/data-source.js",
-    "migration:revert": "npm run build && typeorm migration:revert -d dist/database/data-source.js"
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run start:dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "migration:run": "cd backend && npm run migration:run",
+    "migration:revert": "cd backend && npm run migration:revert"
   }
 }

@@ -1,0 +1,80 @@
+@startuml tRPC Architecture Sequence
+!define RECTANGLE class
+
+participant "Frontend\n(Next.js)" as Frontend
+participant "tRPC Client\n(utils/api.ts)" as Client
+participant "HTTP Transport" as HTTP
+participant "Standalone\ntRPC Server\n(:3001)" as Server
+participant "tRPC Router\n(router.ts)" as Router
+participant "User Router\n(routers/user.ts)" as UserRouter
+participant "Context\n(standalone-context.ts)" as Context
+participant "Database\n(PostgreSQL)" as DB
+
+== 初期化フェーズ ==
+Frontend -> Client: createTRPCNext<AppRouter>()
+Client -> Client: 設定\n- transformer: superjson\n- httpBatchLink\n- url: localhost:3001
+
+Server -> Server: createHTTPServer()
+Server -> Context: createContext()
+Context -> DB: AppDataSource.initialize()
+Context --> Server: { req, res, db }
+
+== API呼び出しフェーズ (例: user.create) ==
+Frontend -> Client: api.user.create.useMutation()
+Client -> Client: React Query Hook生成
+
+Frontend -> Client: mutateAsync({ email, name })
+Client -> HTTP: POST http://localhost:3001
+note right: tRPC Batch Request\n{ procedure: "user.create",\n  input: { email, name } }
+
+HTTP -> Server: HTTPリクエスト受信
+Server -> Context: createContext(opts)
+Context -> DB: 接続確認
+Context --> Server: Context { req, res, db }
+
+Server -> Router: appRouter実行
+Router -> UserRouter: user.create実行
+UserRouter -> UserRouter: 入力検証\n(createUserSchema)
+UserRouter -> DB: findOne({ email })
+alt ユーザーが存在する場合
+    UserRouter --> Frontend: TRPCError\n(CONFLICT)
+else ユーザーが存在しない場合
+    UserRouter -> DB: create & save
+    DB --> UserRouter: savedUser
+    UserRouter -> UserRouter: 出力検証\n(userResponseSchema)
+    UserRouter --> Server: savedUser
+    Server --> HTTP: tRPC Response
+    HTTP --> Client: HTTP Response
+    Client --> Frontend: User Object
+end
+
+== クエリ呼び出しフェーズ (例: user.getByEmail) ==
+Frontend -> Client: api.user.getByEmail.useQuery({ email })
+Client -> HTTP: POST http://localhost:3001
+note right: tRPC Batch Request\n{ procedure: "user.getByEmail",\n  input: { email } }
+
+HTTP -> Server: HTTPリクエスト受信
+Server -> Context: createContext(opts)
+Context --> Server: Context { req, res, db }
+
+Server -> Router: appRouter実行
+Router -> UserRouter: user.getByEmail実行
+UserRouter -> DB: findOne({ email })
+alt ユーザーが見つからない場合
+    UserRouter --> Frontend: TRPCError\n(NOT_FOUND)
+else ユーザーが見つかった場合
+    DB --> UserRouter: user
+    UserRouter --> Server: user
+    Server --> HTTP: tRPC Response
+    HTTP --> Client: HTTP Response
+    Client --> Frontend: User Object
+end
+
+== 主要コンポーネント ==
+note over Frontend: pages/index.tsx\n- UIコンポーネント\n- tRPCフック使用
+note over Client: src/utils/api.ts\n- tRPCクライアント設定\n- React Query統合
+note over Server: src/trpc/standalone-server.ts\n- HTTPサーバー\n- CORS設定
+note over Router: src/trpc/router.ts\n- ルーター統合\n- auth, user, skillSheet,\n  interview
+note over Context: src/trpc/standalone-context.ts\n- リクエストごとのコンテキスト\n- DB接続管理
+
+@enduml

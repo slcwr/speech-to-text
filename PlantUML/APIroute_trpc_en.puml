@@ -1,0 +1,226 @@
+@startuml web_engineer_interview_system_APIRoutes_tRPC
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam sequence {
+    ArrowColor #005500
+    ActorBorderColor #005500
+    LifeLineBorderColor #005500
+    ParticipantBorderColor #005500
+    ParticipantBackgroundColor #DDFFDD
+    ActorBackgroundColor #DDFFDD
+}
+
+title Web Engineer Interview System Processing Sequence (Next.js API Routes + tRPC)
+
+actor "User" as User
+box "Frontend (Next.js)" #LightBlue
+    participant "LoginPage" as LoginPage
+    participant "RegisterPage" as RegisterPage
+    participant "SkillSheetUpload" as UploadComponent
+    participant "InterviewApp" as InterviewApp
+    participant "AudioRecorder" as AudioRecorder
+    participant "tRPC Client" as tRPCClient
+end box
+
+box "Backend (Next.js API Routes)" #LightGreen
+    participant "tRPC Router\n(/api/trpc/[trpc])" as tRPCRouter
+    participant "Upload API\n(/api/upload)" as UploadAPI
+    participant "Audio Stream API\n(/api/audio/stream)" as AudioAPI
+    participant "Auth Procedures" as AuthProc
+    participant "Interview Procedures" as InterviewProc
+    participant "Services Layer" as Services
+    participant "Gemini Service" as GeminiService
+    participant "FFmpeg Service" as FFmpegService
+end box
+
+box "Database (PostgreSQL)" #LightYellow
+    database "Users" as UserDB
+    database "SkillSheets" as SkillDB
+    database "Questions" as QuestionDB
+    database "Answers" as AnswerDB
+    database "Sessions" as SessionDB
+end box
+
+database "File Storage\n(local/S3)" as FileStorage
+
+== 0. User Registration ==
+User -> RegisterPage: Access
+RegisterPage -> User: Show registration form
+User -> RegisterPage: Enter email and password
+RegisterPage -> tRPCClient: auth.register.mutate({email, password})
+tRPCClient -> tRPCRouter: POST /api/trpc/auth.register
+tRPCRouter -> AuthProc: register(input)
+AuthProc -> UserDB: Check existing user
+UserDB --> AuthProc: Check result
+
+alt User does not exist
+    AuthProc -> AuthProc: Hash password (bcrypt)
+    AuthProc -> UserDB: Save user information
+    UserDB --> AuthProc: Save complete
+    AuthProc -> AuthProc: Generate JWT
+    AuthProc --> tRPCRouter: {user, token}
+    tRPCRouter --> tRPCClient: Success response
+    tRPCClient --> RegisterPage: {user, token}
+    RegisterPage -> RegisterPage: Save token to localStorage
+    RegisterPage -> User: Redirect to dashboard
+else User already exists
+    AuthProc --> tRPCRouter: TRPCError(CONFLICT)
+    tRPCRouter --> tRPCClient: Error response
+    tRPCClient --> RegisterPage: Error
+    RegisterPage -> User: Show error message
+end
+
+== 0.1. Login ==
+User -> LoginPage: Access
+LoginPage -> User: Show login form
+User -> LoginPage: Enter email and password
+LoginPage -> tRPCClient: auth.login.mutate({email, password})
+tRPCClient -> tRPCRouter: POST /api/trpc/auth.login
+tRPCRouter -> AuthProc: login(input)
+AuthProc -> UserDB: Get user information
+UserDB --> AuthProc: User data
+
+alt Authentication successful
+    AuthProc -> AuthProc: Verify password
+    AuthProc -> AuthProc: Generate JWT
+    AuthProc --> tRPCRouter: {user, token}
+    tRPCRouter --> tRPCClient: Success response
+    tRPCClient --> LoginPage: {user, token}
+    LoginPage -> LoginPage: Save token to localStorage
+    LoginPage -> User: Redirect to dashboard
+else Authentication failed
+    AuthProc --> tRPCRouter: TRPCError(UNAUTHORIZED)
+    tRPCRouter --> tRPCClient: Error response
+    tRPCClient --> LoginPage: Error
+    LoginPage -> User: Show error message
+end
+
+== 1. Skill Sheet Upload ==
+note left of User: Following processes require authenticated users only
+User -> UploadComponent: Select skill sheet file
+UploadComponent -> UploadComponent: Create FormData
+UploadComponent -> UploadAPI: POST /api/upload\n(FormData + JWT in header)
+UploadAPI -> UploadAPI: Verify JWT
+UploadAPI -> UploadAPI: Process file with multer
+UploadAPI -> FileStorage: Save file
+FileStorage --> UploadAPI: File path
+
+UploadAPI -> Services: processSkillSheet(filePath, userId)
+Services -> GeminiService: analyzeDocument(filePath)
+GeminiService -> GeminiService: Read file
+GeminiService -> GeminiService: Analyze with Gemini API
+note right of GeminiService: Analyze technical skills,\nexperience years, projects,\nstrengths, weaknesses,\nproblem-solving abilities
+GeminiService --> Services: Analysis result
+
+Services -> SkillDB: Save skill sheet information
+Services -> SessionDB: Create interview session
+SessionDB --> Services: sessionId
+
+Services -> GeminiService: generateQuestions(analysisResult)
+GeminiService -> GeminiService: Generate questions
+GeminiService --> Services: Question list
+
+Services -> QuestionDB: Save questions (self-intro, motivation, technical, reverse)
+QuestionDB --> Services: Save complete
+
+Services --> UploadAPI: {sessionId, message: "Ready"}
+UploadAPI --> UploadComponent: Success response
+UploadComponent -> User: Show start interview button
+
+== 2. Interview Start ==
+User -> InterviewApp: Click start interview button
+InterviewApp -> tRPCClient: interview.startSession.mutate({sessionId})
+tRPCClient -> tRPCRouter: POST /api/trpc/interview.startSession
+tRPCRouter -> InterviewProc: startSession(input, ctx)
+InterviewProc -> SessionDB: Update session status
+InterviewProc -> QuestionDB: Get first question
+QuestionDB --> InterviewProc: Self-introduction question
+InterviewProc --> tRPCRouter: {question, audioUrl}
+tRPCRouter --> tRPCClient: Question data
+tRPCClient --> InterviewApp: Display question
+
+InterviewApp -> AudioRecorder: Play question audio
+AudioRecorder -> User: Play question via audio
+User -> AudioRecorder: Click record button
+
+== 3. Answer Recording and Real-time Transcription ==
+AudioRecorder -> AudioRecorder: getUserMedia()
+AudioRecorder -> AudioRecorder: Start MediaRecorder
+
+loop Recording (per chunk)
+    AudioRecorder -> AudioRecorder: ondataavailable(chunk)
+    AudioRecorder -> AudioAPI: POST /api/audio/stream\n(audio chunk + sessionId)
+    AudioAPI -> AudioAPI: Verify JWT
+    AudioAPI -> FFmpegService: convertToWav(chunk)
+    FFmpegService --> AudioAPI: WAV data
+    
+    AudioAPI -> GeminiService: transcribeAudio(wavData)
+    GeminiService --> AudioAPI: Transcribed text
+    
+    AudioAPI -> AnswerDB: Append answer text (streaming)
+    AudioAPI --> AudioRecorder: {transcript: "transcribed text"}
+    AudioRecorder -> InterviewApp: Update real-time display
+    InterviewApp -> User: Show transcribed answer
+end
+
+User -> AudioRecorder: Click end answer button
+AudioRecorder -> AudioRecorder: Stop MediaRecorder
+AudioRecorder -> tRPCClient: interview.completeAnswer.mutate({questionId})
+tRPCClient -> tRPCRouter: POST /api/trpc/interview.completeAnswer
+tRPCRouter -> InterviewProc: completeAnswer(input, ctx)
+InterviewProc -> AnswerDB: Update answer complete flag
+InterviewProc -> QuestionDB: Get next question
+QuestionDB --> InterviewProc: Next question (motivation)
+InterviewProc --> tRPCRouter: {nextQuestion}
+tRPCRouter --> tRPCClient: Next question data
+tRPCClient --> InterviewApp: Display next question
+
+== 4. Interview Process Continuation ==
+note right of InterviewApp: Process motivation,\ntechnical questions,\nreverse questions (max 3)\nwith same flow
+
+== 5. Interview Completion ==
+InterviewApp -> tRPCClient: interview.completeSession.mutate({sessionId})
+tRPCClient -> tRPCRouter: POST /api/trpc/interview.completeSession
+tRPCRouter -> InterviewProc: completeSession(input, ctx)
+InterviewProc -> SessionDB: Update session to complete status
+InterviewProc -> Services: generateFeedback(sessionId)
+Services -> GeminiService: analyzeFeedback(answers)
+GeminiService --> Services: Feedback
+Services -> SessionDB: Save feedback
+Services --> InterviewProc: Completion data
+InterviewProc --> tRPCRouter: {feedback, score}
+tRPCRouter --> tRPCClient: Interview result
+tRPCClient --> InterviewApp: Display result
+InterviewApp -> User: Show interview result and feedback
+
+== Error Handling ==
+alt JWT authentication error
+    tRPCRouter --> tRPCClient: TRPCError(UNAUTHORIZED)
+    tRPCClient -> LoginPage: Redirect
+else File upload error
+    UploadAPI --> UploadComponent: HTTP 400/500
+    UploadComponent -> User: Show error
+else Audio conversion error
+    GeminiService --> AudioAPI: Error
+    AudioAPI --> AudioRecorder: Error response
+    AudioRecorder -> User: Show recording error
+end
+
+== Technical Architecture Features ==
+note over tRPCRouter, InterviewProc
+tRPC Role:
+- Normal CRUD operations
+- Authentication/Authorization
+- Session management
+- Type-safe API communication
+end note
+
+note over UploadAPI, AudioAPI
+API Routes Role:
+- File upload processing
+- Audio streaming processing
+- Binary data handling
+- Real-time communication
+end note
+
+@enduml

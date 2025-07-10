@@ -1,0 +1,252 @@
+@startuml webエンジニア面接システム
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam sequence {
+    ArrowColor #005500
+    ActorBorderColor #005500
+    LifeLineBorderColor #005500
+    ParticipantBorderColor #005500
+    ParticipantBackgroundColor #DDFFDD
+    ActorBackgroundColor #DDFFDD
+}
+
+title Webエンジニア面接システム処理シーケンス
+
+actor "ユーザー" as User
+box "フロントエンド (Next.js)" #LightBlue
+    participant "LoginPage\nComponent" as LoginPage
+    participant "RegisterPage\nComponent" as RegisterPage
+    participant "SkillSheetUpload\nComponent" as UploadComponent
+    participant "InterviewApp\nComponent" as InterviewApp
+    participant "AudioRecorder\nComponent" as AudioRecorder
+    participant "useAudioRecorder\nHook" as Hook
+    participant "MediaRecorder\nAPI" as MediaRecorder
+end box
+
+box "バックエンド (NestJS)" #LightGreen
+    participant "AuthController" as AuthController
+    participant "AuthService" as AuthService
+    participant "SkillSheetController" as SkillController
+    participant "InterviewController" as InterviewController
+    participant "AudioController" as AudioController
+    participant "InterviewService" as InterviewService
+    participant "AudioService" as AudioService
+    participant "GenerativeModel\n(Gemini)" as GenerativeModel
+    participant "FFmpeg" as FFmpeg
+    participant "JWTService" as JWTService
+end box
+
+box "データベース" #LightYellow
+    database "DB\n(ユーザー情報)" as UserDB
+    database "DB\n(スキルシート解析結果)" as SkillDB
+    database "DB\n(質問データ)" as QuestionDB
+    database "DB\n(回答データ)" as AnswerDB
+end box
+
+database "File System\n(uploads/)" as FileSystem
+
+== 0. ユーザー登録 ==
+User -> RegisterPage: アクセス
+RegisterPage -> User: 登録フォーム表示
+User -> RegisterPage: メールアドレス・パスワード入力
+RegisterPage -> AuthController: POST /auth/register
+AuthController -> AuthService: createUser(email, password)
+AuthService -> UserDB: 既存ユーザーチェック
+UserDB --> AuthService: チェック結果
+
+alt ユーザーが存在しない
+    AuthService -> AuthService: パスワードハッシュ化
+    AuthService -> UserDB: ユーザー情報保存
+    UserDB --> AuthService: 保存完了
+    AuthService -> JWTService: generateToken(userId)
+    JWTService --> AuthService: JWTトークン
+    AuthService --> AuthController: {user, token}
+    AuthController --> RegisterPage: 登録成功レスポンス
+    RegisterPage -> User: ダッシュボード画面へリダイレクト
+else ユーザーが既に存在
+    AuthService --> AuthController: エラー（既存ユーザー）
+    AuthController --> RegisterPage: HTTP 409 Conflict
+    RegisterPage -> User: エラーメッセージ表示
+end
+
+== 0.1. ログイン ==
+User -> LoginPage: アクセス
+LoginPage -> User: ログインフォーム表示
+User -> LoginPage: メールアドレス・パスワード入力
+LoginPage -> AuthController: POST /auth/login
+AuthController -> AuthService: validateUser(email, password)
+AuthService -> UserDB: ユーザー情報取得
+UserDB --> AuthService: ユーザーデータ
+
+alt 認証成功
+    AuthService -> AuthService: パスワード検証
+    AuthService -> JWTService: generateToken(userId)
+    JWTService --> AuthService: JWTトークン
+    AuthService --> AuthController: {user, token}
+    AuthController --> LoginPage: ログイン成功レスポンス
+    LoginPage -> LoginPage: トークンをlocalStorageに保存
+    LoginPage -> User: ダッシュボード画面へリダイレクト
+else 認証失敗
+    AuthService --> AuthController: エラー（認証失敗）
+    AuthController --> LoginPage: HTTP 401 Unauthorized
+    LoginPage -> User: エラーメッセージ表示
+end
+
+== 1. スキルシート アップロード ==
+note left of User: 以降の処理は認証済みユーザーのみ
+User -> UploadComponent: スキルシートファイル選択
+UploadComponent -> UploadComponent: Authorizationヘッダー追加
+UploadComponent -> SkillController: POST /skillsheet/upload\n(with JWT token)
+SkillController -> FileSystem: スキルシートファイル保存
+SkillController -> InterviewService: processSkillSheet(file)
+
+== 2. スキルシート解析 ==
+InterviewService -> GenerativeModel: スキルシート内容解析
+note right of GenerativeModel: 技術スキル、経験年数、\nプロジェクト経験、得意分野、\n弱点、課題解決能力を解析
+GenerativeModel --> InterviewService: 解析結果
+
+InterviewService -> SkillDB: 技術スキル情報保存
+InterviewService -> SkillDB: 経験年数情報保存
+InterviewService -> SkillDB: プロジェクト経験保存
+InterviewService -> SkillDB: 得意分野保存
+InterviewService -> SkillDB: 弱点・改善点保存
+InterviewService -> SkillDB: 課題解決能力保存
+
+== 3. 面接質問生成 ==
+InterviewService -> GenerativeModel: 自己紹介質問生成
+GenerativeModel --> InterviewService: 自己紹介質問
+InterviewService -> QuestionDB: 自己紹介質問保存
+
+InterviewService -> GenerativeModel: 志望動機質問生成
+GenerativeModel --> InterviewService: 志望動機質問
+InterviewService -> QuestionDB: 志望動機質問保存
+
+InterviewService -> GenerativeModel: 技術質問生成（スキル解析結果に基づく）
+GenerativeModel --> InterviewService: 技術質問
+InterviewService -> QuestionDB: 技術質問保存
+
+InterviewService -> GenerativeModel: 逆質問生成（3つまで）
+GenerativeModel --> InterviewService: 逆質問リスト
+InterviewService -> QuestionDB: 逆質問保存
+
+InterviewService --> SkillController: 質問生成完了
+SkillController --> UploadComponent: 質問準備完了通知
+UploadComponent -> User: 面接開始ボタン表示
+
+== 4. 面接開始 ==
+User -> InterviewApp: 面接開始ボタンクリック
+InterviewApp -> InterviewController: GET /interview/start
+InterviewController -> QuestionDB: 自己紹介質問取得
+QuestionDB --> InterviewController: 自己紹介質問
+InterviewController --> InterviewApp: 自己紹介質問
+
+InterviewApp -> AudioRecorder: 音声再生（質問）
+AudioRecorder -> User: 音声で質問再生
+User -> AudioRecorder: 録音開始
+
+== 5. 回答録音・文字化（自己紹介） ==
+AudioRecorder -> Hook: startRecording()
+Hook -> MediaRecorder: navigator.mediaDevices.getUserMedia()
+MediaRecorder --> Hook: MediaStream
+Hook -> MediaRecorder: new MediaRecorder(stream)
+Hook -> MediaRecorder: mediaRecorder.start()
+
+loop 録音中（リアルタイム）
+    MediaRecorder -> Hook: ondataavailable(event)
+    Hook -> AudioController: POST /audio/stream (chunk)
+    AudioController -> AudioService: processAudioChunk(chunk)
+    AudioService -> FFmpeg: WebM to WAV 変換（メモリ上）
+    AudioService -> GenerativeModel: 音声→テキスト変換
+    GenerativeModel --> AudioService: 文字化テキスト
+    AudioService -> AnswerDB: 回答データ保存（streaming）
+    AudioService --> AudioController: 文字化結果
+    AudioController --> Hook: 文字化テキスト
+    Hook -> InterviewApp: リアルタイム文字表示
+    InterviewApp -> User: 回答文字表示
+end
+
+User -> AudioRecorder: 回答終了ボタンクリック
+AudioRecorder -> Hook: stopRecording()
+Hook -> MediaRecorder: mediaRecorder.stop()
+Hook -> AudioController: POST /audio/finalize
+AudioController -> AudioService: finalizeAnswer()
+AudioService -> AnswerDB: 回答完了フラグ更新
+
+== 6. 志望動機質問 ==
+InterviewApp -> InterviewController: GET /interview/next
+InterviewController -> QuestionDB: 志望動機質問取得
+QuestionDB --> InterviewController: 志望動機質問
+InterviewController --> InterviewApp: 志望動機質問
+
+note right of InterviewApp: 同様の録音・文字化プロセス
+InterviewApp -> AudioRecorder: 音声再生（質問）
+AudioRecorder -> User: 音声で質問再生
+
+== 7. 技術質問 ==
+InterviewApp -> InterviewController: GET /interview/next
+InterviewController -> QuestionDB: 技術質問取得
+QuestionDB --> InterviewController: 技術質問
+InterviewController --> InterviewApp: 技術質問
+
+note right of InterviewApp: 同様の録音・文字化プロセス
+InterviewApp -> AudioRecorder: 音声再生（質問）
+AudioRecorder -> User: 音声で質問再生
+
+== 8. 逆質問（3つまで） ==
+loop 逆質問 (最大3回)
+    InterviewApp -> InterviewController: GET /interview/reverse-question
+    InterviewController -> QuestionDB: 逆質問取得
+    QuestionDB --> InterviewController: 逆質問
+    InterviewController --> InterviewApp: 逆質問
+    
+    InterviewApp -> AudioRecorder: 音声再生（逆質問）
+    AudioRecorder -> User: 音声で逆質問再生
+    
+    note right of InterviewApp: 同様の録音・文字化プロセス
+    User -> AudioRecorder: 回答録音
+    AudioRecorder -> Hook: 録音・文字化処理
+    Hook -> AnswerDB: 回答保存
+end
+
+== 9. 面接終了 ==
+InterviewApp -> InterviewController: POST /interview/complete
+InterviewController -> AnswerDB: 面接完了フラグ更新
+InterviewController --> InterviewApp: 面接完了通知
+InterviewApp -> User: 面接完了画面表示
+
+== エラーハンドリング ==
+alt 認証エラー
+    SkillController --> UploadComponent: HTTP 401 Unauthorized
+    UploadComponent -> LoginPage: リダイレクト
+    LoginPage -> User: ログイン画面表示
+else スキルシートアップロードエラー
+    SkillController --> UploadComponent: HTTP 4xx/5xx
+    UploadComponent -> User: アップロードエラー表示
+else 質問生成エラー
+    GenerativeModel --> InterviewService: Error
+    InterviewService --> SkillController: 質問生成失敗
+    SkillController --> UploadComponent: エラー通知
+else 録音エラー
+    MediaRecorder --> Hook: Error
+    Hook -> AudioRecorder: エラー状態
+    AudioRecorder -> User: 録音エラー表示
+else 音声変換エラー
+    FFmpeg --> AudioService: Error
+    AudioService --> AudioController: 変換エラー
+    AudioController --> Hook: エラー通知
+end
+
+== 補足：セキュリティ ==
+note over AuthService, JWTService: セキュリティ機能
+    パスワードはbcryptでハッシュ化
+    JWTトークンの有効期限設定
+    リフレッシュトークンの実装（必要に応じて）
+end note
+
+note over SkillController, InterviewController, AudioController: API認証
+    全てのAPIエンドポイントでJWT認証
+    ユーザーは自分のデータのみアクセス可能
+    ロールベースアクセス制御（必要に応じて）
+end note
+
+@enduml
