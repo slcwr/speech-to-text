@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { gql, useMutation } from '@apollo/client';
+import { useMutation } from '@apollo/client';
 import Cookies from 'js-cookie';
 import {
   Container,
@@ -16,20 +16,7 @@ import {
   Link as MuiLink,
 } from '@mui/material';
 import Link from 'next/link';
-
-const REGISTER_MUTATION = gql`
-  mutation Register($input: RegisterInput!) {
-    register(input: $input) {
-      user {
-        id
-        email
-        name
-        role
-      }
-      token
-    }
-  }
-`;
+import { REGISTER_MUTATION } from '../../graphql';
 
 interface RegisterFormData {
   email: string;
