@@ -1,0 +1,253 @@
+@startuml web_engineer_interview_system_GraphQL_Architecture
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam sequence {
+    ArrowColor #005500
+    ActorBorderColor #005500
+    LifeLineBorderColor #005500
+    ParticipantBorderColor #005500
+    ParticipantBackgroundColor #DDFFDD
+    ActorBackgroundColor #DDFFDD
+}
+
+title Web Engineer Interview System Architecture (Next.js + Nest.js/GraphQL + TypeORM)
+
+actor "User" as User
+box "Frontend (Next.js)" #LightBlue
+    participant "Login/Register\nPage" as AuthPage
+    participant "Dashboard" as Dashboard
+    participant "Interview\nComponent" as InterviewApp
+    participant "Audio\nRecorder" as AudioRecorder
+    participant "Apollo Client" as ApolloClient
+    participant "Apollo\nWebSocket Link" as WSLink
+end box
+
+box "Backend (Nest.js)" #LightGreen
+    participant "GraphQL\nGateway" as GraphQLGateway
+    participant "Auth Guard" as AuthGuard
+    participant "User\nResolver" as UserResolver
+    participant "SkillSheet\nResolver" as SkillResolver
+    participant "Interview\nResolver" as InterviewResolver
+    participant "Audio\nController" as AudioController
+    participant "User Service" as UserService
+    participant "Interview\nService" as InterviewService
+    participant "Gemini Service" as GeminiService
+    participant "FFmpeg Service" as FFmpegService
+    participant "WebSocket\nSubscriptions" as WSSubscriptions
+end box
+
+box "Database (PostgreSQL + TypeORM)" #LightYellow
+    database "User\nEntity" as UserDB
+    database "SkillSheet\nEntity" as SkillDB
+    database "Session\nEntity" as SessionDB
+    database "Question\nEntity" as QuestionDB
+    database "Answer\nEntity" as AnswerDB
+end box
+
+database "File Storage\n(S3/Local)" as FileStorage
+
+== 0. User Registration ==
+User -> AuthPage: Access registration page
+AuthPage -> ApolloClient: mutation { register }
+ApolloClient -> GraphQLGateway: POST /graphql\n{register(input)}
+GraphQLGateway -> UserResolver: register(input)
+UserResolver -> UserService: createUser(dto)
+UserService -> UserService: Hash password (bcrypt)
+UserService -> UserDB: save(user)
+UserDB --> UserService: User entity
+UserService -> UserService: Generate JWT
+UserService --> UserResolver: {user, token}
+UserResolver --> GraphQLGateway: RegisterResponse
+GraphQLGateway --> ApolloClient: {data: {register}}
+ApolloClient -> ApolloClient: Update cache\nStore token
+ApolloClient --> AuthPage: Success
+AuthPage -> Dashboard: Navigate
+
+== 0.1. Login ==
+User -> AuthPage: Enter credentials
+AuthPage -> ApolloClient: mutation { login }
+ApolloClient -> GraphQLGateway: POST /graphql\n{login(email, password)}
+GraphQLGateway -> UserResolver: login(email, password)
+UserResolver -> UserService: validateUser(email, password)
+UserService -> UserDB: findOne({email})
+UserDB --> UserService: User entity
+UserService -> UserService: Verify password
+UserService -> UserService: Generate JWT
+UserService --> UserResolver: {user, token}
+UserResolver --> GraphQLGateway: LoginResponse
+GraphQLGateway --> ApolloClient: {data: {login}}
+ApolloClient -> ApolloClient: Update cache\nStore token
+ApolloClient --> AuthPage: Success
+AuthPage -> Dashboard: Navigate
+
+== 1. Skill Sheet Upload ==
+User -> Dashboard: Select skill sheet file
+Dashboard -> Dashboard: Prepare FormData
+Dashboard -> AudioController: POST /api/upload\n(multipart/form-data)\nAuthorization: Bearer JWT
+AudioController -> AuthGuard: Validate JWT
+AuthGuard --> AudioController: User context
+AudioController -> AudioController: Process file (multer)
+AudioController -> FileStorage: Save file
+FileStorage --> AudioController: File path
+
+AudioController -> InterviewService: processSkillSheet(path, userId)
+InterviewService -> GeminiService: analyzeDocument(path)
+GeminiService -> GeminiService: Extract text\nAnalyze skills
+note right of GeminiService
+Analyze:
+- Technical skills
+- Experience years
+- Projects
+- Strengths/Weaknesses
+- Problem-solving approach
+end note
+GeminiService --> InterviewService: Analysis result
+
+InterviewService -> SkillDB: save(skillSheet)
+SkillDB --> InterviewService: SkillSheet entity
+InterviewService -> SessionDB: save(session)
+SessionDB --> InterviewService: Session entity
+
+InterviewService -> GeminiService: generateQuestions(analysis)
+GeminiService --> InterviewService: Question list
+InterviewService -> QuestionDB: saveAll(questions)
+QuestionDB --> InterviewService: Saved questions
+
+InterviewService --> AudioController: {sessionId, status}
+AudioController --> Dashboard: Upload complete
+Dashboard -> ApolloClient: query { getSession }
+ApolloClient -> GraphQLGateway: Query session
+GraphQLGateway --> ApolloClient: Session data
+Dashboard -> InterviewApp: Show start button
+
+== 2. Interview Start ==
+User -> InterviewApp: Click start interview
+InterviewApp -> ApolloClient: mutation { startInterview }
+ApolloClient -> GraphQLGateway: POST /graphql\n{startInterview(sessionId)}
+GraphQLGateway -> AuthGuard: Validate token
+AuthGuard --> GraphQLGateway: Authorized
+GraphQLGateway -> InterviewResolver: startInterview(sessionId)
+InterviewResolver -> InterviewService: startSession(sessionId)
+InterviewService -> SessionDB: Update status
+InterviewService -> QuestionDB: Get first question
+QuestionDB --> InterviewService: Question entity
+InterviewService --> InterviewResolver: Current question
+InterviewResolver --> GraphQLGateway: Question data
+GraphQLGateway --> ApolloClient: {data: {startInterview}}
+InterviewApp -> InterviewApp: Display question
+InterviewApp -> AudioRecorder: Play question audio
+
+== 3. Real-time Audio Streaming Setup ==
+InterviewApp -> WSLink: subscription { audioTranscription }
+WSLink -> GraphQLGateway: WebSocket connection\n(ws://localhost:3000/graphql)
+GraphQLGateway -> WSSubscriptions: Register subscription
+WSSubscriptions --> GraphQLGateway: Subscription established
+GraphQLGateway --> WSLink: Connection confirmed
+WSLink --> InterviewApp: Ready for streaming
+
+== 4. Answer Recording with Real-time Transcription ==
+User -> AudioRecorder: Start recording
+AudioRecorder -> AudioRecorder: getUserMedia()
+AudioRecorder -> AudioRecorder: Create MediaRecorder
+
+loop Audio chunks (every 1s)
+    AudioRecorder -> AudioRecorder: ondataavailable(chunk)
+    AudioRecorder -> AudioController: POST /api/audio/stream\n(audio chunk)\nHeaders: sessionId, questionId
+    AudioController -> AuthGuard: Validate JWT
+    AuthGuard --> AudioController: Authorized
+    
+    AudioController -> FFmpegService: convertToWav(chunk)
+    FFmpegService --> AudioController: WAV buffer
+    
+    AudioController -> GeminiService: transcribeAudio(wav)
+    GeminiService --> AudioController: Transcript text
+    
+    AudioController -> InterviewService: appendTranscript(questionId, text)
+    InterviewService -> AnswerDB: Update answer
+    
+    AudioController -> WSSubscriptions: publish('audioTranscription', data)
+    WSSubscriptions -> GraphQLGateway: Emit subscription event
+    GraphQLGateway -> WSLink: Subscription update
+    WSLink -> ApolloClient: New transcription data
+    ApolloClient -> InterviewApp: Update UI
+    InterviewApp -> User: Show real-time transcript
+end
+
+User -> AudioRecorder: Stop recording
+AudioRecorder -> ApolloClient: mutation { completeAnswer }
+ApolloClient -> GraphQLGateway: POST /graphql\n{completeAnswer(questionId)}
+GraphQLGateway -> InterviewResolver: completeAnswer(questionId)
+InterviewResolver -> InterviewService: finalizeAnswer(questionId)
+InterviewService -> AnswerDB: Update status
+InterviewService -> QuestionDB: Get next question
+QuestionDB --> InterviewService: Next question
+InterviewService --> InterviewResolver: Next question data
+InterviewResolver --> GraphQLGateway: Response
+GraphQLGateway --> ApolloClient: {data: {completeAnswer}}
+InterviewApp -> InterviewApp: Display next question
+
+== 5. Interview Process Continuation ==
+note over InterviewApp
+Continue with:
+1. Motivation questions
+2. Technical questions
+3. Reverse questions (max 3)
+Using same recording flow
+end note
+
+== 6. Interview Completion ==
+InterviewApp -> ApolloClient: mutation { completeInterview }
+ApolloClient -> GraphQLGateway: POST /graphql\n{completeInterview(sessionId)}
+GraphQLGateway -> InterviewResolver: completeInterview(sessionId)
+InterviewResolver -> InterviewService: completeSession(sessionId)
+InterviewService -> SessionDB: Update status
+InterviewService -> GeminiService: generateFeedback(answers)
+GeminiService -> GeminiService: Analyze all answers
+GeminiService --> InterviewService: Feedback & scores
+InterviewService -> SessionDB: Save feedback
+InterviewService --> InterviewResolver: Interview result
+InterviewResolver --> GraphQLGateway: CompleteResponse
+GraphQLGateway --> ApolloClient: {data: {completeInterview}}
+InterviewApp -> User: Show results & feedback
+
+== Error Handling ==
+alt Authentication Error
+    AuthGuard --> GraphQLGateway: Unauthorized
+    GraphQLGateway --> ApolloClient: GraphQL Error
+    ApolloClient -> AuthPage: Redirect to login
+else File Upload Error
+    AudioController --> Dashboard: HTTP 400/500
+    Dashboard -> User: Show error message
+else Transcription Error
+    GeminiService --> AudioController: Error
+    AudioController -> WSSubscriptions: Error event
+    WSSubscriptions --> InterviewApp: Error notification
+    InterviewApp -> User: Show error state
+end
+
+== Architecture Benefits ==
+note over GraphQLGateway, InterviewResolver
+GraphQL Benefits:
+- Single endpoint
+- Type-safe schema
+- Efficient data fetching
+- Real-time subscriptions
+- Apollo cache management
+end note
+
+note over AudioController
+REST Endpoint for:
+- File uploads
+- Audio streaming
+- Binary data handling
+end note
+
+note over UserDB, AnswerDB
+TypeORM Benefits:
+- Entity relationships
+- Migrations
+- Query builder
+- Active Record pattern
+end note
+
+@enduml

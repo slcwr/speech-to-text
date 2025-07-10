@@ -1,0 +1,224 @@
+@startuml web_engineer_interview_system_APIRoutes_tRPC
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam sequence {
+    ArrowColor #005500
+    ActorBorderColor #005500
+    LifeLineBorderColor #005500
+    ParticipantBorderColor #005500
+    ParticipantBackgroundColor #DDFFDD
+    ActorBackgroundColor #DDFFDD
+}
+
+title Web Engineer Interview System Processing Sequence (Next.js API Routes + tRPC)
+
+actor "User" as User
+box "Frontend (Next.js)" #LightBlue
+    participant "LoginPage" as LoginPage
+    participant "RegisterPage" as RegisterPage
+    participant "SkillSheetUpload" as UploadComponent
+    participant "InterviewApp" as InterviewApp
+    participant "AudioRecorder" as AudioRecorder
+    participant "tRPC Client" as tRPCClient
+end box
+
+box "Backend (Next.js API Routes)" #LightGreen
+    participant "tRPC Router\n(/api/trpc/[trpc])" as tRPCRouter
+    participant "Upload API\n(/api/upload)" as UploadAPI
+    participant "Audio Stream API\n(/api/audio/stream)" as AudioAPI
+    participant "Auth Procedures" as AuthProc
+    participant "Interview Procedures" as InterviewProc
+    participant "Services Layer" as Services
+    participant "Gemini Service" as GeminiService
+    participant "FFmpeg Service" as FFmpegService
+end box
+
+box "Database (PostgreSQL)" #LightYellow
+    database "Users" as UserDB
+    database "SkillSheets" as SkillDB
+    database "Questions" as QuestionDB
+    database "Answers" as AnswerDB
+    database "Sessions" as SessionDB
+end box
+
+database "File Storage\n(local/S3)" as FileStorage
+
+== 0. User Registration ==
+User -> RegisterPage: アクセス
+RegisterPage -> User: 登録フォーム表示
+User -> RegisterPage: メールアドレス・パスワード入力
+RegisterPage -> tRPCClient: auth.register.mutate({email, password})
+tRPCClient -> tRPCRouter: POST /api/trpc/auth.register
+tRPCRouter -> AuthProc: register(input)
+AuthProc -> UserDB: 既存ユーザーチェック
+UserDB --> AuthProc: チェック結果
+
+alt ユーザーが存在しない
+    AuthProc -> AuthProc: パスワードハッシュ化 (bcrypt)
+    AuthProc -> UserDB: ユーザー情報保存
+    UserDB --> AuthProc: 保存完了
+    AuthProc -> AuthProc: JWT生成
+    AuthProc --> tRPCRouter: {user, token}
+    tRPCRouter --> tRPCClient: 成功レスポンス
+    tRPCClient --> RegisterPage: {user, token}
+    RegisterPage -> RegisterPage: トークンをlocalStorageに保存
+    RegisterPage -> User: ダッシュボード画面へリダイレクト
+else ユーザーが既に存在
+    AuthProc --> tRPCRouter: TRPCError(CONFLICT)
+    tRPCRouter --> tRPCClient: エラーレスポンス
+    tRPCClient --> RegisterPage: エラー
+    RegisterPage -> User: エラーメッセージ表示
+end
+
+== 0.1. Login ==
+User -> LoginPage: アクセス
+LoginPage -> User: ログインフォーム表示
+User -> LoginPage: メールアドレス・パスワード入力
+LoginPage -> tRPCClient: auth.login.mutate({email, password})
+tRPCClient -> tRPCRouter: POST /api/trpc/auth.login
+tRPCRouter -> AuthProc: login(input)
+AuthProc -> UserDB: ユーザー情報取得
+UserDB --> AuthProc: ユーザーデータ
+
+alt 認証成功
+    AuthProc -> AuthProc: パスワード検証
+    AuthProc -> AuthProc: JWT生成
+    AuthProc --> tRPCRouter: {user, token}
+    tRPCRouter --> tRPCClient: 成功レスポンス
+    tRPCClient --> LoginPage: {user, token}
+    LoginPage -> LoginPage: トークンをlocalStorageに保存
+    LoginPage -> User: ダッシュボード画面へリダイレクト
+else 認証失敗
+    AuthProc --> tRPCRouter: TRPCError(UNAUTHORIZED)
+    tRPCRouter --> tRPCClient: エラーレスポンス
+    tRPCClient --> LoginPage: エラー
+    LoginPage -> User: エラーメッセージ表示
+end
+
+== 1. Skill Sheet Upload ==
+note left of User: 以降の処理は認証済みユーザーのみ
+User -> UploadComponent: スキルシートファイル選択
+UploadComponent -> UploadComponent: FormData作成
+UploadComponent -> UploadAPI: POST /api/upload\n(FormData + JWT in header)
+UploadAPI -> UploadAPI: JWT検証
+UploadAPI -> UploadAPI: multerでファイル処理
+UploadAPI -> FileStorage: ファイル保存
+FileStorage --> UploadAPI: ファイルパス
+
+UploadAPI -> Services: processSkillSheet(filePath, userId)
+Services -> GeminiService: analyzeDocument(filePath)
+GeminiService -> GeminiService: ファイル読み込み
+GeminiService -> GeminiService: Gemini APIで解析
+note right of GeminiService: 技術スキル、経験年数、\nプロジェクト経験、得意分野、\n弱点、課題解決能力を解析
+GeminiService --> Services: 解析結果
+
+Services -> SkillDB: スキルシート情報保存
+Services -> SessionDB: 面接セッション作成
+SessionDB --> Services: sessionId
+
+Services -> GeminiService: generateQuestions(解析結果)
+GeminiService -> GeminiService: 質問生成
+GeminiService --> Services: 質問リスト
+
+Services -> QuestionDB: 質問保存（自己紹介、志望動機、技術、逆質問）
+QuestionDB --> Services: 保存完了
+
+Services --> UploadAPI: {sessionId, message: "準備完了"}
+UploadAPI --> UploadComponent: 成功レスポンス
+UploadComponent -> User: 面接開始ボタン表示
+
+== 2. Interview Start ==
+User -> InterviewApp: 面接開始ボタンクリック
+InterviewApp -> tRPCClient: interview.startSession.mutate({sessionId})
+tRPCClient -> tRPCRouter: POST /api/trpc/interview.startSession
+tRPCRouter -> InterviewProc: startSession(input, ctx)
+InterviewProc -> SessionDB: セッション状態更新
+InterviewProc -> QuestionDB: 最初の質問取得
+QuestionDB --> InterviewProc: 自己紹介質問
+InterviewProc --> tRPCRouter: {question, audioUrl}
+tRPCRouter --> tRPCClient: 質問データ
+tRPCClient --> InterviewApp: 質問表示
+
+InterviewApp -> AudioRecorder: 質問音声再生
+AudioRecorder -> User: 音声で質問再生
+User -> AudioRecorder: 録音開始ボタンクリック
+
+== 3. Answer Recording and Real-time Transcription ==
+AudioRecorder -> AudioRecorder: getUserMedia()
+AudioRecorder -> AudioRecorder: MediaRecorder開始
+
+loop 録音中（チャンクごと）
+    AudioRecorder -> AudioRecorder: ondataavailable(chunk)
+    AudioRecorder -> AudioAPI: POST /api/audio/stream\n(audio chunk + sessionId)
+    AudioAPI -> AudioAPI: JWT検証
+    AudioAPI -> FFmpegService: convertToWav(chunk)
+    FFmpegService --> AudioAPI: WAVデータ
+    
+    AudioAPI -> GeminiService: transcribeAudio(wavData)
+    GeminiService --> AudioAPI: 文字化テキスト
+    
+    AudioAPI -> AnswerDB: 回答テキスト追記（ストリーミング）
+    AudioAPI --> AudioRecorder: {transcript: "文字化テキスト"}
+    AudioRecorder -> InterviewApp: リアルタイム表示更新
+    InterviewApp -> User: 文字化された回答を表示
+end
+
+User -> AudioRecorder: 回答終了ボタンクリック
+AudioRecorder -> AudioRecorder: MediaRecorder停止
+AudioRecorder -> tRPCClient: interview.completeAnswer.mutate({questionId})
+tRPCClient -> tRPCRouter: POST /api/trpc/interview.completeAnswer
+tRPCRouter -> InterviewProc: completeAnswer(input, ctx)
+InterviewProc -> AnswerDB: 回答完了フラグ更新
+InterviewProc -> QuestionDB: 次の質問取得
+QuestionDB --> InterviewProc: 次の質問（志望動機）
+InterviewProc --> tRPCRouter: {nextQuestion}
+tRPCRouter --> tRPCClient: 次の質問データ
+tRPCClient --> InterviewApp: 次の質問表示
+
+== 4. Interview Process Continuation ==
+note right of InterviewApp: 志望動機質問、技術質問、\n逆質問（最大3つ）を\n同様のフローで処理
+
+== 5. Interview Completion ==
+InterviewApp -> tRPCClient: interview.completeSession.mutate({sessionId})
+tRPCClient -> tRPCRouter: POST /api/trpc/interview.completeSession
+tRPCRouter -> InterviewProc: completeSession(input, ctx)
+InterviewProc -> SessionDB: セッション完了状態に更新
+InterviewProc -> Services: generateFeedback(sessionId)
+Services -> GeminiService: analyzeFeedback(answers)
+GeminiService --> Services: フィードバック
+Services -> SessionDB: フィードバック保存
+Services --> InterviewProc: 完了データ
+InterviewProc --> tRPCRouter: {feedback, score}
+tRPCRouter --> tRPCClient: 面接結果
+tRPCClient --> InterviewApp: 結果表示
+InterviewApp -> User: 面接結果・フィードバック表示
+
+== Error Handling ==
+alt JWT認証エラー
+    tRPCRouter --> tRPCClient: TRPCError(UNAUTHORIZED)
+    tRPCClient -> LoginPage: リダイレクト
+else ファイルアップロードエラー
+    UploadAPI --> UploadComponent: HTTP 400/500
+    UploadComponent -> User: エラー表示
+else 音声変換エラー
+    GeminiService --> AudioAPI: Error
+    AudioAPI --> AudioRecorder: エラーレスポンス
+    AudioRecorder -> User: 録音エラー表示
+end
+
+== Technical Architecture Features ==
+note over tRPCRouter, InterviewProc: tRPCの役割
+    通常のCRUD操作
+    認証・認可処理
+    セッション管理
+    型安全なAPI通信
+end note
+
+note over UploadAPI, AudioAPI: API Routesの役割
+    ファイルアップロード処理
+    音声ストリーミング処理
+    バイナリデータの取り扱い
+    リアルタイム通信
+end note
+
+@enduml
