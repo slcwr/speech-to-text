@@ -34,7 +34,7 @@ export default function HomePage() {
           </Typography>
           
           <Typography variant="body1" paragraph sx={{ mt: 3, textAlign: 'left' }}>
-            技術面接スキルを練習しましょう。
+            技術面接を練習しましょう。
             <br />
             スキルシートをアップロードして、パーソナライズされた質問で練習を開始してください。
           </Typography>

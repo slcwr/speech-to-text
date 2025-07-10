@@ -3,25 +3,13 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Container, Typography, Box, Button, Paper } from '@mui/material';
-import { gql, useQuery } from '@apollo/client';
+import { useQuery } from '@apollo/client';
 import Cookies from 'js-cookie';
-
-const ME_QUERY = gql`
-  query Me {
-    me {
-      id
-      email
-      name
-      role
-      createdAt
-      lastLoginAt
-    }
-  }
-`;
+import { GET_CURRENT_USER } from '../../graphql';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { data, loading, error } = useQuery(ME_QUERY);
+  const { data, loading, error } = useQuery(GET_CURRENT_USER);
 
   useEffect(() => {
     const token = Cookies.get('token');
