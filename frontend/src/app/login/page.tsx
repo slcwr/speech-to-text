@@ -20,10 +20,12 @@ import { LOGIN_MUTATION } from '/workspaces/speech-to-text/frontend/src/graphql/
 import type { LoginMutation, LoginMutationVariables, LoginInput } from './types';
 import { UserBasicFieldsFragmentDoc } from './types';
 import { useFragment } from '../../graphql/types/fragment-masking';
+import { useApolloClient } from '@apollo/client';  
 
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const client = useApolloClient(); 
   
   const {
     register,
@@ -33,8 +35,10 @@ export default function LoginPage() {
 
   const [login] = useMutation<LoginMutation, LoginMutationVariables>(LOGIN_MUTATION, {
     onCompleted: (data) => {
-      // Extract user data from fragment
-      const userData = useFragment(UserBasicFieldsFragmentDoc, data.login.user);
+      // キャッシュをクリア
+      client.clearStore();
+      // Extract user data 
+      const userData = data.login.user
       
       // Store token in cookie with 7 days expiration
       Cookies.set('token', data.login.token, { 

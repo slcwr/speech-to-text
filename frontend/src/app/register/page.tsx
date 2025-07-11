@@ -20,6 +20,7 @@ import { REGISTER_MUTATION } from '/workspaces/speech-to-text/frontend/src/graph
 import type { RegisterMutation, RegisterMutationVariables, RegisterInput } from './types';
 import { UserBasicFieldsFragmentDoc } from './types';
 import { useFragment } from '../../graphql/types/fragment-masking';
+import { useApolloClient } from '@apollo/client';  
 
 interface RegisterFormData extends RegisterInput {
   confirmPassword: string;
@@ -28,6 +29,7 @@ interface RegisterFormData extends RegisterInput {
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const client = useApolloClient(); 
   
   const {
     register,
@@ -40,8 +42,10 @@ export default function RegisterPage() {
 
   const [registerUser] = useMutation<RegisterMutation, RegisterMutationVariables>(REGISTER_MUTATION, {
     onCompleted: (data) => {
+      // キャッシュをクリア
+      client.clearStore();
       // Extract user data from fragment
-      const userData = useFragment(UserBasicFieldsFragmentDoc, data.register.user);
+      const userData = data.register.user; 
       
       // Store token in cookie with 7 days expiration
       Cookies.set('token', data.register.token, { 
