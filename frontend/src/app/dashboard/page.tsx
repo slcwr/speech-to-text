@@ -5,11 +5,14 @@ import { useRouter } from 'next/navigation';
 import { Container, Typography, Box, Button, Paper } from '@mui/material';
 import { useQuery } from '@apollo/client';
 import Cookies from 'js-cookie';
-import { GET_CURRENT_USER } from '../../graphql';
+import { GET_CURRENT_USER } from '/workspaces/speech-to-text/frontend/src/graphql/queries/auth';
+import type { User, GetCurrentUserQueryData } from './types';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { data, loading, error } = useQuery(GET_CURRENT_USER);
+  const { data, loading, error } =
+    useQuery<GetCurrentUserQueryData>(GET_CURRENT_USER);
+  console.log('get_current_user', error);
 
   useEffect(() => {
     const token = Cookies.get('token');
@@ -56,13 +59,13 @@ export default function DashboardPage() {
 
         <Paper elevation={2} sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Interview System
+            面接練習システムへようこそ
           </Typography>
           <Typography variant="body1" paragraph>
-            Upload your skill sheet to get started with personalized technical interview practice.
+            スキルシートをアップロードして、パーソナライズされた技術面接の練習を始めましょう。
           </Typography>
           <Button variant="contained" sx={{ mt: 2 }}>
-            Upload Skill Sheet
+            アップロードはこちら
           </Button>
         </Paper>
       </Box>
