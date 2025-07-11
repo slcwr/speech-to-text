@@ -16,12 +16,10 @@ import {
   Link as MuiLink,
 } from '@mui/material';
 import Link from 'next/link';
-import { LOGIN_MUTATION } from '../../graphql';
-
-interface LoginFormData {
-  email: string;
-  password: string;
-}
+import { LOGIN_MUTATION } from '/workspaces/speech-to-text/frontend/src/graphql/mutations/auth';
+import type { LoginMutation, LoginMutationVariables, LoginInput } from './types';
+import { UserBasicFieldsFragmentDoc } from './types';
+import { useFragment } from '../../graphql/types/fragment-masking';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,10 +29,13 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<LoginFormData>();
+  } = useForm<LoginInput>();
 
-  const [login] = useMutation(LOGIN_MUTATION, {
+  const [login] = useMutation<LoginMutation, LoginMutationVariables>(LOGIN_MUTATION, {
     onCompleted: (data) => {
+      // Extract user data from fragment
+      const userData = useFragment(UserBasicFieldsFragmentDoc, data.login.user);
+      
       // Store token in cookie with 7 days expiration
       Cookies.set('token', data.login.token, { 
         expires: 7,
@@ -42,7 +43,7 @@ export default function LoginPage() {
         sameSite: 'strict'
       });
       // Store user data in cookie
-      Cookies.set('user', JSON.stringify(data.login.user), { 
+      Cookies.set('user', JSON.stringify(userData), { 
         expires: 7,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict'
@@ -54,7 +55,7 @@ export default function LoginPage() {
     },
   });
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: LoginInput) => {
     setError(null);
     await login({
       variables: {

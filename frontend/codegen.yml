@@ -2,6 +2,8 @@ overwrite: true
 schema: "../backend/src/schema.gql"
 documents: 
   - "src/graphql/mutations/auth.ts"
+  - "src/graphql/queries/auth.ts"
+  - "src/graphql/queries/user.ts"
   - "src/graphql/fragments/user.ts"
 generates:
   # Global types
@@ -39,6 +41,14 @@ generates:
       documentVariablePrefix: ""
       fragmentVariablePrefix: ""
   
+  # GraphQL client and helper types
+  src/graphql/types/:
+    preset: client
+    config:
+      scalars:
+        DateTime: string
+      fragmentMasking: true
+
   # Component-specific types  
   src/app/login/types.ts:
     documents: "src/graphql/mutations/auth.ts"
@@ -112,7 +122,7 @@ generates:
   
   src/app/dashboard/types.ts:
     documents: 
-      - "src/graphql/mutations/auth.ts"
+      - "src/graphql/queries/auth.ts"
       - "src/graphql/fragments/user.ts"
     plugins:
       - "typescript"

@@ -16,13 +16,13 @@ import {
   Link as MuiLink,
 } from '@mui/material';
 import Link from 'next/link';
-import { REGISTER_MUTATION } from '../../graphql';
+import { REGISTER_MUTATION } from '/workspaces/speech-to-text/frontend/src/graphql/mutations/auth';
+import type { RegisterMutation, RegisterMutationVariables, RegisterInput } from './types';
+import { UserBasicFieldsFragmentDoc } from './types';
+import { useFragment } from '../../graphql/types/fragment-masking';
 
-interface RegisterFormData {
-  email: string;
-  password: string;
+interface RegisterFormData extends RegisterInput {
   confirmPassword: string;
-  name?: string;
 }
 
 export default function RegisterPage() {
@@ -38,8 +38,11 @@ export default function RegisterPage() {
 
   const password = watch('password');
 
-  const [registerUser] = useMutation(REGISTER_MUTATION, {
+  const [registerUser] = useMutation<RegisterMutation, RegisterMutationVariables>(REGISTER_MUTATION, {
     onCompleted: (data) => {
+      // Extract user data from fragment
+      const userData = useFragment(UserBasicFieldsFragmentDoc, data.register.user);
+      
       // Store token in cookie with 7 days expiration
       Cookies.set('token', data.register.token, { 
         expires: 7,
@@ -47,7 +50,7 @@ export default function RegisterPage() {
         sameSite: 'strict'
       });
       // Store user data in cookie
-      Cookies.set('user', JSON.stringify(data.register.user), { 
+      Cookies.set('user', JSON.stringify(userData), { 
         expires: 7,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict'

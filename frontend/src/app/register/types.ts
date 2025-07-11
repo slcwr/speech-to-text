@@ -1,10 +1,14 @@
-export type Maybe<T> = T | null | undefined;
-export type InputMaybe<T> = T | null | undefined;
+/* eslint-disable */
+import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
+
+export type Maybe<T> = T | null;
+export type InputMaybe<T> = Maybe<T>;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
 export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = { [_ in K]?: never };
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
+
 /** All built-in and custom scalars, mapped to their actual values */
 export type Scalars = {
   ID: { input: string; output: string; }
@@ -22,41 +26,9 @@ export type AuthResponse = {
   user: User;
 };
 
-export type LoginInput = {
-  email: Scalars['String']['input'];
-  password: Scalars['String']['input'];
-};
-
-export type Mutation = {
-  __typename?: 'Mutation';
-  login: AuthResponse;
-  register: AuthResponse;
-};
-
-
-export type MutationLoginArgs = {
-  input: LoginInput;
-};
-
-
-export type MutationRegisterArgs = {
-  input: RegisterInput;
-};
-
-export type Query = {
-  __typename?: 'Query';
-  me: User;
-  user: Maybe<User>;
-};
-
-
-export type QueryUserArgs = {
-  id: Scalars['String']['input'];
-};
-
 export type RegisterInput = {
   email: Scalars['String']['input'];
-  name: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
   password: Scalars['String']['input'];
 };
 
@@ -66,50 +38,50 @@ export type User = {
   email: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
-  lastLoginAt: Maybe<Scalars['DateTime']['output']>;
-  name: Maybe<Scalars['String']['output']>;
+  lastLoginAt?: Maybe<Scalars['DateTime']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
   role: Scalars['String']['output'];
   updatedAt: Scalars['DateTime']['output'];
 };
 
-export type UserFieldsFragment = (
-  { id: string, email: string, name: string | null | undefined, role: string, isActive: boolean, lastLoginAt: string | null | undefined, createdAt: string, updatedAt: string }
-  & { __typename?: 'User' }
-);
-
-export type UserBasicFieldsFragment = (
-  { id: string, email: string, name: string | null | undefined, role: string }
-  & { __typename?: 'User' }
-);
-
-export type LoginMutationVariables = Exact<{
-  input: LoginInput;
-}>;
-
-
-export type LoginMutation = (
-  { login: (
-    { token: string, user: (
-      UserBasicFieldsFragment
-      & { __typename?: 'User' }
-    ) }
-    & { __typename?: 'AuthResponse' }
-  ) }
-  & { __typename?: 'Mutation' }
-);
+export type UserBasicFieldsFragment = { 
+  __typename?: 'User', 
+  id: string, 
+  email: string, 
+  name?: string | null, 
+  role: string 
+} & { ' $fragmentName'?: 'UserBasicFieldsFragment' };
 
 export type RegisterMutationVariables = Exact<{
   input: RegisterInput;
 }>;
 
+export type RegisterMutation = { 
+  __typename?: 'Mutation', 
+  register: { 
+    __typename?: 'AuthResponse', 
+    token: string, 
+    user: (
+      { __typename?: 'User' }
+      & { ' $fragmentRefs'?: { 'UserBasicFieldsFragment': UserBasicFieldsFragment } }
+    ) 
+  } 
+};
 
-export type RegisterMutation = (
-  { register: (
-    { token: string, user: (
-      UserBasicFieldsFragment
-      & { __typename?: 'User' }
-    ) }
-    & { __typename?: 'AuthResponse' }
-  ) }
-  & { __typename?: 'Mutation' }
-);
+export const UserBasicFieldsFragmentDoc = {
+  "kind": "Document",
+  "definitions": [{
+    "kind": "FragmentDefinition",
+    "name": {"kind": "Name", "value": "UserBasicFields"},
+    "typeCondition": {"kind": "NamedType", "name": {"kind": "Name", "value": "User"}},
+    "selectionSet": {
+      "kind": "SelectionSet",
+      "selections": [
+        {"kind": "Field", "name": {"kind": "Name", "value": "id"}},
+        {"kind": "Field", "name": {"kind": "Name", "value": "email"}},
+        {"kind": "Field", "name": {"kind": "Name", "value": "name"}},
+        {"kind": "Field", "name": {"kind": "Name", "value": "role"}}
+      ]
+    }
+  }]
+} as unknown as DocumentNode<UserBasicFieldsFragment, unknown>;
