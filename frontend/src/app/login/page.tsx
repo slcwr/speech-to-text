@@ -34,29 +34,42 @@ export default function LoginPage() {
   } = useForm<LoginInput>();
 
   const [login] = useMutation<LoginMutation, LoginMutationVariables>(LOGIN_MUTATION, {
-    onCompleted: (data) => {
-      // キャッシュをクリア
-      client.clearStore();
-      // Extract user data 
-      const userData = data.login.user
-      
-      // Store token in cookie with 7 days expiration
-      Cookies.set('token', data.login.token, { 
-        expires: 7,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict'
-      });
-      // Store user data in cookie
-      Cookies.set('user', JSON.stringify(userData), { 
-        expires: 7,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict'
-      });
-      router.push('/dashboard');
+    onCompleted: async (data) => {
+      try {
+        // キャッシュをクリアして古いデータを除去
+        await client.clearStore();
+        
+        // Extract user data 
+        const userData = data.login.user
+        
+        // Store token in cookie with 7 days expiration
+        Cookies.set('token', data.login.token, { 
+          expires: 7,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict'
+        });
+        // Store user data in cookie
+        Cookies.set('user', JSON.stringify(userData), { 
+          expires: 7,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict'
+        });
+        
+        // ページ遷移前に少し待機してキャッシュクリアを完了させる
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 100);
+      } catch (error) {
+        console.error('Error during login completion:', error);
+        router.push('/dashboard');
+      }
     },
     onError: (error) => {
       setError(error.message);
     },
+    // キャッシュからの読み取りを無効化
+    fetchPolicy: 'no-cache',
+    errorPolicy: 'all',
   });
 
   const onSubmit = async (data: LoginInput) => {
@@ -80,7 +93,7 @@ export default function LoginPage() {
       >
         <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
           <Typography component="h1" variant="h5" align="center">
-            Login
+            ログイン
           </Typography>
           <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 1 }}>
             {error && (
@@ -93,7 +106,7 @@ export default function LoginPage() {
               required
               fullWidth
               id="email"
-              label="Email Address"
+              label="Email"
               autoComplete="email"
               autoFocus
               error={!!errors.email}
@@ -131,11 +144,11 @@ export default function LoginPage() {
               sx={{ mt: 3, mb: 2 }}
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Logging in...' : 'Login'}
+              {isSubmitting ? 'ログイン中...' : 'ログイン'}
             </Button>
             <Box textAlign="center">
               <MuiLink component={Link} href="/register" variant="body2">
-                {"Don't have an account? Register"}
+                {"アカウントをお持ちではないですか? 新規登録"}
               </MuiLink>
             </Box>
           </Box>

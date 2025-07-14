@@ -8,6 +8,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
+import { ObjectType, Field, ID, registerEnumType } from '@nestjs/graphql';
 import { InterviewQuestion } from './interview-question.entity';
 
 export interface AnswerData {
@@ -38,20 +39,29 @@ export enum AnswerStatus {
   FAILED = 'failed',
 }
 
+registerEnumType(AnswerStatus, {
+  name: 'AnswerStatus',
+});
+
+@ObjectType()
 @Entity('interview_answers')
 @Index('IDX_interview_answers_question_id', ['question_id'])
 @Index('IDX_interview_answers_status', ['answer_status'])
 @Index('IDX_answer_data_gin', ['answer_data'])
 export class InterviewAnswer {
+  @Field(() => ID)
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Field()
   @Column({ type: 'uuid' })
   question_id: string;
 
+  @Field(() => String)
   @Column({ type: 'jsonb' })
   answer_data: AnswerData;
 
+  @Field(() => AnswerStatus)
   @Column({
     type: 'varchar',
     length: 20,
@@ -59,15 +69,19 @@ export class InterviewAnswer {
   })
   answer_status: AnswerStatus;
 
+  @Field()
   @CreateDateColumn({ type: 'timestamp with time zone' })
   started_at: Date;
 
+  @Field({ nullable: true })
   @Column({ type: 'timestamp with time zone', nullable: true })
   completed_at: Date;
 
+  @Field()
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 
+  @Field()
   @UpdateDateColumn({ type: 'timestamp with time zone' })
   updated_at: Date;
 

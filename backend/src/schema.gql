@@ -2,6 +2,19 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+enum AnalysisStatus {
+  COMPLETED
+  FAILED
+  PENDING
+  PROCESSING
+}
+
+enum AnswerStatus {
+  COMPLETED
+  FAILED
+  IN_PROGRESS
+}
+
 type AuthResponse {
   token: String!
   user: User!
@@ -11,6 +24,40 @@ type AuthResponse {
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
 scalar DateTime
+
+type InterviewAnswer {
+  answer_data: String!
+  answer_status: AnswerStatus!
+  completed_at: DateTime
+  created_at: DateTime!
+  id: ID!
+  question_id: String!
+  started_at: DateTime!
+  updated_at: DateTime!
+}
+
+type InterviewQuestion {
+  answer: InterviewAnswer
+  created_at: DateTime!
+  id: ID!
+  question_data: String!
+  question_order: Float!
+  question_type: QuestionType!
+  session_id: String!
+}
+
+type InterviewSession {
+  completed_at: DateTime
+  created_at: DateTime!
+  id: ID!
+  questions: [InterviewQuestion!]!
+  session_status: SessionStatus!
+  skillSheet: SkillSheet!
+  skill_sheet_id: String!
+  started_at: DateTime
+  updated_at: DateTime!
+  user_id: String!
+}
 
 input LoginInput {
   email: String!
@@ -23,14 +70,42 @@ type Mutation {
 }
 
 type Query {
+  getLatestSession: InterviewSession
+  getMySkillSheets: [SkillSheet!]!
+  getSkillSheet(id: String!): SkillSheet
   me: User!
   user(id: String!): User
+}
+
+enum QuestionType {
+  MOTIVATION
+  REVERSE
+  SELF_INTRODUCTION
+  TECHNICAL
 }
 
 input RegisterInput {
   email: String!
   name: String
   password: String!
+}
+
+enum SessionStatus {
+  CANCELLED
+  COMPLETED
+  IN_PROGRESS
+  PENDING
+}
+
+type SkillSheet {
+  analysis_status: AnalysisStatus!
+  created_at: DateTime!
+  file_name: String!
+  file_path: String!
+  id: ID!
+  skill_data: String!
+  updated_at: DateTime!
+  user_id: String!
 }
 
 type User {

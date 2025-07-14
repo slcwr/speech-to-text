@@ -8,6 +8,7 @@ import {
   OneToOne,
   Index,
 } from 'typeorm';
+import { ObjectType, Field, ID, registerEnumType } from '@nestjs/graphql';
 import { InterviewSession } from './interview-session.entity';
 import { InterviewAnswer } from './interview-answer.entity';
 
@@ -30,26 +31,37 @@ export enum QuestionType {
   REVERSE = 'reverse',
 }
 
+registerEnumType(QuestionType, {
+  name: 'QuestionType',
+});
+
+@ObjectType()
 @Entity('interview_questions')
 @Index('IDX_interview_questions_session_id', ['session_id'])
 @Index('IDX_interview_questions_type', ['question_type'])
 @Index('IDX_interview_questions_order', ['session_id', 'question_order'])
 export class InterviewQuestion {
+  @Field(() => ID)
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Field()
   @Column({ type: 'uuid' })
   session_id: string;
 
+  @Field(() => QuestionType)
   @Column({ type: 'varchar', length: 20 })
   question_type: QuestionType;
 
+  @Field()
   @Column({ type: 'int' })
   question_order: number;
 
+  @Field(() => String)
   @Column({ type: 'jsonb' })
   question_data: QuestionData;
 
+  @Field()
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 
@@ -58,6 +70,7 @@ export class InterviewQuestion {
   @JoinColumn({ name: 'session_id' })
   session: InterviewSession;
 
+  @Field(() => InterviewAnswer, { nullable: true })
   @OneToOne(() => InterviewAnswer, (answer) => answer.question)
   answer: InterviewAnswer;
 }

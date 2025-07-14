@@ -47,5 +47,29 @@ const splitLink = split(
 
 export const apolloClient = new ApolloClient({
   link: splitLink,
-  cache: new InMemoryCache(),
+  cache: new InMemoryCache({
+    // Disable cache for authentication mutations to prevent stale data
+    typePolicies: {
+      Mutation: {
+        fields: {
+          login: {
+            merge: false,
+          },
+          register: {
+            merge: false,
+          },
+        },
+      },
+    },
+  }),
 });
+
+// Helper function to clear all Apollo cache
+export const clearApolloCache = () => {
+  return apolloClient.clearStore();
+};
+
+// Helper function to reset Apollo cache completely
+export const resetApolloCache = () => {
+  return apolloClient.resetStore();
+};

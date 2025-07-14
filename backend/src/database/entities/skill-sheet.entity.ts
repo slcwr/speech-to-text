@@ -9,6 +9,7 @@ import {
   OneToMany,
   Index,
 } from 'typeorm';
+import { ObjectType, Field, ID, registerEnumType } from '@nestjs/graphql';
 import { User } from './user.entity';
 import { InterviewSession } from './interview-session.entity';
 
@@ -46,6 +47,11 @@ export enum AnalysisStatus {
   FAILED = 'failed',
 }
 
+registerEnumType(AnalysisStatus, {
+  name: 'AnalysisStatus',
+});
+
+@ObjectType()
 @Entity('skill_sheets')
 @Index('IDX_skill_sheets_user_id', ['user_id'])
 @Index('IDX_skill_sheets_analysis_status', ['analysis_status'])
@@ -57,21 +63,27 @@ export enum AnalysisStatus {
   where: "((skill_data->>'experience_years')::int) >= 5" 
 })
 export class SkillSheet {
+  @Field(() => ID)
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Field()
   @Column({ type: 'uuid' })
   user_id: string;
 
+  @Field()
   @Column({ type: 'varchar', length: 500 })
   file_path: string;
 
+  @Field()
   @Column({ type: 'varchar', length: 255 })
   file_name: string;
 
+  @Field(() => String)
   @Column({ type: 'jsonb' })
   skill_data: SkillData;
 
+  @Field(() => AnalysisStatus)
   @Column({
     type: 'varchar',
     length: 20,
@@ -79,9 +91,11 @@ export class SkillSheet {
   })
   analysis_status: AnalysisStatus;
 
+  @Field()
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 
+  @Field()
   @UpdateDateColumn({ type: 'timestamp with time zone' })
   updated_at: Date;
 

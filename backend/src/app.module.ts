@@ -8,6 +8,7 @@ import { join } from 'path';
 // Modules
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
+import { SkillSheetModule } from './modules/skill-sheet/skill-sheet.module';
 
 @Module({
   imports: [
@@ -23,9 +24,9 @@ import { UserModule } from './modules/user/user.module';
       port: parseInt(process.env.DB_PORT || '5432'),
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
-      database: process.env.DB_NAME || 'interview_system',
+      database: process.env.DB_NAME || 'interview_db',
       entities: [join(__dirname, '**', '*.entity.{ts,js}')],
-      synchronize: process.env.NODE_ENV !== 'production',
+      synchronize: false,
       logging: process.env.NODE_ENV === 'development',
     }),
 
@@ -45,6 +46,7 @@ import { UserModule } from './modules/user/user.module';
     // Feature modules
     AuthModule,
     UserModule,
+    SkillSheetModule,
   ],
 })
 export class AppModule {}
