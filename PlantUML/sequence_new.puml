@@ -82,16 +82,40 @@ AuthPage -> Dashboard: Navigate
 
 == 1. Skill Sheet Upload ==
 User -> Dashboard: Select skill sheet file
+note over Dashboard
+推奨ファイル形式:
+- PDF (最推奨)
+- DOCX (Word文書)
+- XLSX/XLS (Excel)
+サイズ制限: 20MB以下
+end note
+
+Dashboard -> Dashboard: Validate file type & size
 Dashboard -> Dashboard: Prepare FormData
 Dashboard -> AudioController: POST /api/upload\n(multipart/form-data)\nAuthorization: Bearer JWT
 AudioController -> AuthGuard: Validate JWT
 AuthGuard --> AudioController: User context
 AudioController -> AudioController: Process file (multer)
-AudioController -> FileStorage: Save file
+
+alt Excel file (.xlsx/.xls)
+    AudioController -> AudioController: Detect Excel format
+    AudioController -> AudioController: Convert Excel to CSV\n(using xlsx library)
+    note right of AudioController
+    Excel → CSV conversion:
+    - Parse Excel sheets
+    - Extract all data
+    - Convert to UTF-8 CSV
+    - Preserve structure
+    end note
+    AudioController -> FileStorage: Save converted CSV
+else PDF/DOCX file
+    AudioController -> FileStorage: Save original file
+end
+
 FileStorage --> AudioController: File path
 
-AudioController -> InterviewService: processSkillSheet(path, userId)
-InterviewService -> GeminiService: analyzeDocument(path)
+AudioController -> InterviewService: processSkillSheet(path, userId, fileType)
+InterviewService -> GeminiService: analyzeDocument(path, format)
 GeminiService -> GeminiService: Extract text\nAnalyze skills
 note right of GeminiService
 Analyze:

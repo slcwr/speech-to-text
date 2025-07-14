@@ -8,7 +8,7 @@ import { AuthService } from '../auth.service';
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private authService: AuthService,
-    private configService: ConfigService,
+    private configService: ConfigService
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),

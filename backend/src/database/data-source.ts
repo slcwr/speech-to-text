@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
-import { User } from '../entities/user.entity';
+import { User, SkillSheet, InterviewSession, InterviewQuestion, InterviewAnswer } from './entities';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -8,14 +8,18 @@ export const AppDataSource = new DataSource({
   port: parseInt(process.env.DB_PORT || '5432'),
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
-  database: process.env.DB_DATABASE || 'interview_system',
+  database: process.env.DB_DATABASE || 'interview_db',
   synchronize: false, // 本番環境では false に設定
   logging: process.env.NODE_ENV === 'development',
   entities: [
     User,
+    SkillSheet,
+    InterviewSession,
+    InterviewQuestion,
+    InterviewAnswer,
   ],
   migrations: [
-    __dirname + '/migrations/*.js',
+    __dirname + '/migrations/*.ts',
   ],
   migrationsTableName: 'migrations',
   ssl: process.env.DB_SSL === 'true' ? {

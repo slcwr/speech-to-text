@@ -6,37 +6,47 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
+import { ObjectType, Field, ID } from '@nestjs/graphql';
 import { SkillSheet } from './skill-sheet.entity';
 import { InterviewSession } from './interview-session.entity';
 
+@ObjectType()
 @Entity('users')
 export class User {
+  @Field(() => ID)
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Field()
   @Column({ type: 'varchar', length: 255, unique: true })
   email: string;
 
   @Column({ type: 'varchar', length: 255 })
-  password_hash: string;
+  password: string;
 
+  @Field({ nullable: true })
   @Column({ type: 'varchar', length: 100 })
   name: string;
 
+  @Field()
   @Column({ type: 'boolean', default: true })
-  is_active: boolean;
+  isActive: boolean;
 
+  @Field()
   @Column({ type: 'varchar', length: 20, default: 'user' })
   role: string;
 
+  @Field({ nullable: true })
   @Column({ type: 'timestamp with time zone', nullable: true })
-  last_login_at: Date;
+  lastLoginAt: Date;
 
+  @Field()
   @CreateDateColumn({ type: 'timestamp with time zone' })
-  created_at: Date;
+  createdAt: Date;
 
+  @Field()
   @UpdateDateColumn({ type: 'timestamp with time zone' })
-  updated_at: Date;
+  updatedAt: Date;
 
   // Relations
   @OneToMany(() => SkillSheet, (skillSheet) => skillSheet.user)

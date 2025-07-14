@@ -86,3 +86,35 @@ export const GET_INTERVIEW_STATISTICS = gql`
     }
   }
 `;
+
+export const GET_LATEST_SESSION = gql`
+  query GetLatestSession {
+    getLatestSession {
+      id
+      session_status
+      started_at
+      completed_at
+      created_at
+      updated_at
+      skillSheet {
+        id
+        fileName
+        analysisStatus
+        created_at
+      }
+    }
+  }
+`;
+
+export const GET_MY_SKILL_SHEETS = gql`
+  query GetMySkillSheets {
+    getMySkillSheets {
+      id
+      fileName
+      filePath
+      analysisStatus
+      createdAt
+      updatedAt
+    }
+  }
+`;
