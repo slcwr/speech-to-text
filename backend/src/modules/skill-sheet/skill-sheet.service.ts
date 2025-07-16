@@ -1,19 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SkillSheet, AnalysisStatus } from '../../database/entities/skill-sheet.entity';
-import { User } from '../../database/entities/user.entity';
 import { InterviewSession, SessionStatus } from '../../database/entities/interview-session.entity';
 import { InterviewQuestion, QuestionType } from '../../database/entities/interview-question.entity';
 import { GeminiService } from '../gemini/gemini.service';
 
 @Injectable()
 export class SkillSheetService {
+  private readonly logger = new Logger(SkillSheetService.name);
+  
   constructor(
     @InjectRepository(SkillSheet)
     private skillSheetRepository: Repository<SkillSheet>,
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
     @InjectRepository(InterviewSession)
     private interviewSessionRepository: Repository<InterviewSession>,
     @InjectRepository(InterviewQuestion)
@@ -195,6 +194,15 @@ export class SkillSheetService {
       await this.skillSheetRepository.update(skillSheetId, {
         analysis_status: AnalysisStatus.FAILED,
       });
+      
+      // Log detailed error for debugging
+      this.logger.error(`Failed to process skill sheet ${skillSheetId}: ${error.message}`, error);
+      
+      // If it's an API overload error, we might want to retry later
+      if (error.message?.includes('503') || error.message?.includes('overloaded')) {
+        this.logger.warn('Gemini API is overloaded. Consider implementing a retry queue.');
+      }
+      
       throw error;
     }
   }

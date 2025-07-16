@@ -91,16 +91,16 @@ export const GET_LATEST_SESSION = gql`
   query GetLatestSession {
     getLatestSession {
       id
-      session_status
-      started_at
-      completed_at
-      created_at
-      updated_at
+      sessionStatus
+      startedAt
+      completedAt
+      createdAt
+      updatedAt
       skillSheet {
         id
         fileName
         analysisStatus
-        created_at
+        createdAt
       }
     }
   }

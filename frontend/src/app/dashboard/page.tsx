@@ -79,8 +79,11 @@ export default function DashboardPage() {
         
         const checkStatus = async () => {
           try {
-            const { data: sessionResult } = await getLatestSession();
-            if (sessionResult?.getLatestSession?.skillSheet?.analysisStatus === 'completed') {
+            const { data: sessionResult } = await getLatestSession({
+              fetchPolicy: 'no-cache' // Force fresh data from server
+            });
+            console.log('Session data:', sessionResult);
+            if (sessionResult?.getLatestSession?.skillSheet?.analysisStatus === 'COMPLETED') {
               setUploadMessage('分析が完了しました！面接を開始できます。');
               return true;
             }
@@ -93,6 +96,7 @@ export default function DashboardPage() {
         
         const poll = async () => {
           attempts++;
+          console.log(`Polling attempt ${attempts}/${maxAttempts}`);
           const isComplete = await checkStatus();
           
           if (isComplete) {
@@ -102,6 +106,7 @@ export default function DashboardPage() {
           if (attempts < maxAttempts) {
             setTimeout(poll, 1000); // 1秒後に再チェック
           } else {
+            console.log('Polling timed out after', maxAttempts, 'attempts');
             setUploadMessage('分析に時間がかかっています。しばらくお待ちください。');
           }
         };
@@ -121,6 +126,25 @@ export default function DashboardPage() {
 
   const handleStartInterview = () => {
     router.push('/interview');
+  };
+
+  const handleRefreshStatus = async () => {
+    setUploadMessage('状態を確認中...');
+    try {
+      const { data: sessionResult } = await getLatestSession({
+        fetchPolicy: 'no-cache'
+      });
+      console.log('Manual refresh - Session data:', sessionResult);
+      if (sessionResult?.getLatestSession?.skillSheet?.analysisStatus === 'COMPLETED') {
+        setUploadMessage('分析が完了しました！面接を開始できます。');
+        setUploadStatus('success');
+      } else {
+        setUploadMessage('まだ分析中です...');
+      }
+    } catch (error) {
+      console.error('Refresh error:', error);
+      setUploadMessage('状態確認でエラーが発生しました。');
+    }
   };
 
   if (loading) return <div>Loading...</div>;
@@ -224,6 +248,13 @@ export default function DashboardPage() {
             <Alert 
               severity={uploadStatus === 'error' ? 'error' : uploadStatus === 'success' ? 'success' : 'info'}
               sx={{ mt: 2 }}
+              action={
+                uploadMessage.includes('時間がかかっています') ? (
+                  <Button color="inherit" size="small" onClick={handleRefreshStatus}>
+                    状態確認
+                  </Button>
+                ) : null
+              }
             >
               {uploadMessage}
             </Alert>
@@ -233,7 +264,7 @@ export default function DashboardPage() {
             <LinearProgress sx={{ mt: 2 }} />
           )}
 
-          {sessionData?.getLatestSession?.skillSheet?.analysisStatus === 'completed' && (
+          {sessionData?.getLatestSession?.skillSheet?.analysisStatus === 'COMPLETED' && (
             <Paper elevation={1} sx={{ p: 2, mt: 3, bgcolor: 'success.light' }}>
               <Typography variant="h6" gutterBottom color="success.contrastText">
                 ✅ 準備完了
