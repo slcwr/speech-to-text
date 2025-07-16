@@ -38,15 +38,15 @@ export class InterviewSession {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Field()
+  @Field({ name: 'userId' })
   @Column({ type: 'uuid' })
   user_id: string;
 
-  @Field()
+  @Field({ name: 'skillSheetId' })
   @Column({ type: 'uuid' })
   skill_sheet_id: string;
 
-  @Field(() => SessionStatus)
+  @Field(() => SessionStatus, { name: 'sessionStatus' })
   @Column({
     type: 'varchar',
     length: 20,
@@ -54,19 +54,19 @@ export class InterviewSession {
   })
   session_status: SessionStatus;
 
-  @Field({ nullable: true })
+  @Field({ nullable: true, name: 'startedAt' })
   @Column({ type: 'timestamp with time zone', nullable: true })
   started_at: Date;
 
-  @Field({ nullable: true })
+  @Field({ nullable: true, name: 'completedAt' })
   @Column({ type: 'timestamp with time zone', nullable: true })
   completed_at: Date;
 
-  @Field()
+  @Field({ name: 'createdAt' })
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 
-  @Field()
+  @Field({ name: 'updatedAt' })
   @UpdateDateColumn({ type: 'timestamp with time zone' })
   updated_at: Date;
 

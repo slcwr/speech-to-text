@@ -67,23 +67,23 @@ export class SkillSheet {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Field()
+  @Field({ name: 'userId' })
   @Column({ type: 'uuid' })
   user_id: string;
 
-  @Field()
+  @Field({ name: 'filePath' })
   @Column({ type: 'varchar', length: 500 })
   file_path: string;
 
-  @Field()
+  @Field({ name: 'fileName' })
   @Column({ type: 'varchar', length: 255 })
   file_name: string;
 
-  @Field(() => String)
+  @Field(() => String, { name: 'skillData' })
   @Column({ type: 'jsonb' })
   skill_data: SkillData;
 
-  @Field(() => AnalysisStatus)
+  @Field(() => AnalysisStatus, { name: 'analysisStatus' })
   @Column({
     type: 'varchar',
     length: 20,
@@ -91,11 +91,11 @@ export class SkillSheet {
   })
   analysis_status: AnalysisStatus;
 
-  @Field()
+  @Field({ name: 'createdAt' })
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 
-  @Field()
+  @Field({ name: 'updatedAt' })
   @UpdateDateColumn({ type: 'timestamp with time zone' })
   updated_at: Date;
 

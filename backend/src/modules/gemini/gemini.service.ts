@@ -53,6 +53,33 @@ export class GeminiService {
     this.model = this.genAI.getGenerativeModel({ model: modelName });
   }
 
+  private async generateContentWithRetry(prompt: string, maxRetries = 3, baseDelay = 1000): Promise<string> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await this.model.generateContent(prompt);
+        const response = await result.response;
+        return response.text();
+      } catch (error) {
+        this.logger.warn(`API call failed (attempt ${attempt}/${maxRetries}): ${error.message}`);
+        
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        
+        // Check if it's a rate limit or overload error
+        if (error.message?.includes('503') || error.message?.includes('overloaded') || error.message?.includes('429')) {
+          // Exponential backoff with jitter
+          const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
+          this.logger.log(`Waiting ${Math.round(delay)}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          // For other errors, throw immediately
+          throw error;
+        }
+      }
+    }
+  }
+
   async analyzeDocument(filePath: string, fileFormat: string): Promise<AnalysisResult> {
     try {
       this.logger.log(`Analyzing document: ${filePath}, format: ${fileFormat}`);
@@ -100,9 +127,7 @@ export class GeminiService {
 ${fileContent}
 `;
 
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const text = await this.generateContentWithRetry(prompt);
       
       this.logger.log('Gemini analysis completed');
       
@@ -138,9 +163,7 @@ ${fileContent}
 ${JSON.stringify(analysis, null, 2)}
 `;
 
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const text = await this.generateContentWithRetry(prompt);
       
       this.logger.log('Question generation completed');
       
@@ -171,9 +194,7 @@ ${JSON.stringify(analysis, null, 2)}
 面接官として、この候補者に適した内容で質問に回答してください。
 `;
 
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const text = await this.generateContentWithRetry(prompt);
       
       this.logger.log('Reverse question answered');
       
@@ -184,7 +205,7 @@ ${JSON.stringify(analysis, null, 2)}
     }
   }
 
-  private async readFile(filePath: string, fileFormat: string): Promise<string> {
+  private async readFile(filePath: string, _fileFormat: string): Promise<string> {
     try {
       if (!fs.existsSync(filePath)) {
         throw new Error(`File not found: ${filePath}`);

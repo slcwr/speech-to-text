@@ -47,16 +47,16 @@ type InterviewQuestion {
 }
 
 type InterviewSession {
-  completed_at: DateTime
-  created_at: DateTime!
+  completedAt: DateTime
+  createdAt: DateTime!
   id: ID!
   questions: [InterviewQuestion!]!
-  session_status: SessionStatus!
+  sessionStatus: SessionStatus!
   skillSheet: SkillSheet!
-  skill_sheet_id: String!
-  started_at: DateTime
-  updated_at: DateTime!
-  user_id: String!
+  skillSheetId: String!
+  startedAt: DateTime
+  updatedAt: DateTime!
+  userId: String!
 }
 
 input LoginInput {
@@ -98,14 +98,14 @@ enum SessionStatus {
 }
 
 type SkillSheet {
-  analysis_status: AnalysisStatus!
-  created_at: DateTime!
-  file_name: String!
-  file_path: String!
+  analysisStatus: AnalysisStatus!
+  createdAt: DateTime!
+  fileName: String!
+  filePath: String!
   id: ID!
-  skill_data: String!
-  updated_at: DateTime!
-  user_id: String!
+  skillData: String!
+  updatedAt: DateTime!
+  userId: String!
 }
 
 type User {
