@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@apollo/server": "^4.10.0",
+    "@google-cloud/text-to-speech": "^6.2.0",
     "@google/generative-ai": "^0.24.1",
     "@nestjs/apollo": "^12.1.0",
     "@nestjs/common": "^10.0.0",
@@ -36,6 +37,7 @@
     "class-validator": "^0.14.1",
     "graphql": "^16.8.1",
     "graphql-subscriptions": "^2.0.0",
+    "graphql-type-json": "^0.3.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",

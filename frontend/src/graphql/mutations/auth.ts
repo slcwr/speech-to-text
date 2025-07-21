@@ -25,24 +25,3 @@ export const REGISTER_MUTATION = gql`
   ${USER_BASIC_FRAGMENT}
 `;
 
-// Note: These mutations are not yet implemented in the backend
-// export const LOGOUT_MUTATION = gql`
-//   mutation Logout {
-//     logout {
-//       success
-//       message
-//     }
-//   }
-// `;
-
-// export const REFRESH_TOKEN_MUTATION = gql`
-//   mutation RefreshToken {
-//     refreshToken {
-//       token
-//       user {
-//         ...UserBasicFields
-//       }
-//     }
-//   }
-//   ${USER_BASIC_FRAGMENT}
-// `;

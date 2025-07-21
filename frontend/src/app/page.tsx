@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Container, Typography, Button, Box, Paper } from '@mui/material';
+import { Typography, Button, Box, Paper } from '@mui/material';
 import Link from 'next/link';
 import Cookies from 'js-cookie';
 

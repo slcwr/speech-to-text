@@ -125,7 +125,9 @@ export default function DashboardPage() {
   };
 
   const handleStartInterview = () => {
-    router.push('/interview');
+    if (sessionData?.getLatestSession?.id) {
+      router.push(`/interview?sessionId=${sessionData.getLatestSession.id}`);
+    }
   };
 
   const handleRefreshStatus = async () => {
