@@ -144,7 +144,7 @@ ApolloClient -> GraphQLGateway: Query session
 GraphQLGateway --> ApolloClient: Session data
 Dashboard -> InterviewApp: Show start button
 
-== 2. Interview Start ==
+== 2. Interview Start with Browser TTS ==
 User -> InterviewApp: Click start interview
 InterviewApp -> ApolloClient: mutation { startInterview }
 ApolloClient -> GraphQLGateway: POST /graphql\n{startInterview(sessionId)}
@@ -155,11 +155,41 @@ InterviewResolver -> InterviewService: startSession(sessionId)
 InterviewService -> SessionDB: Update status
 InterviewService -> QuestionDB: Get first question
 QuestionDB --> InterviewService: Question entity
-InterviewService --> InterviewResolver: Current question
+
+note over InterviewService
+No server-side TTS generation
+Return question text only
+end note
+
+InterviewService --> InterviewResolver: Current question (text only)
 InterviewResolver --> GraphQLGateway: Question data
 GraphQLGateway --> ApolloClient: {data: {startInterview}}
 InterviewApp -> InterviewApp: Display question
-InterviewApp -> AudioRecorder: Play question audio
+
+== 2.1. Browser Text-to-Speech ==
+InterviewApp -> InterviewApp: Check Web Speech API support
+alt Web Speech API supported
+    InterviewApp -> InterviewApp: Create SpeechSynthesisUtterance
+    note right of InterviewApp
+    Browser TTS settings:
+    - lang: 'ja-JP'
+    - rate: 0.9 (slightly slower)
+    - pitch: 1.0
+    - volume: 1.0
+    end note
+    
+    InterviewApp -> InterviewApp: window.speechSynthesis.speak()
+    InterviewApp -> InterviewApp: onstart event
+    InterviewApp -> InterviewApp: Disable recording button
+    InterviewApp -> User: Play question via browser TTS
+    
+    InterviewApp -> InterviewApp: onend event
+    InterviewApp -> InterviewApp: Enable recording button
+else Web Speech API not supported
+    InterviewApp -> InterviewApp: Show text only
+    InterviewApp -> User: Display fallback message
+    InterviewApp -> InterviewApp: Enable recording button immediately
+end
 
 == 3. Real-time Audio Streaming Setup ==
 InterviewApp -> WSLink: subscription { audioTranscription }

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as textToSpeech from '@google-cloud/text-to-speech';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -36,11 +37,20 @@ export interface QuestionGenerationResult {
   motivation_questions: string[];
 }
 
+export interface TTSOptions {
+  languageCode?: string;
+  voiceName?: string;
+  speakingRate?: number;
+  pitch?: number;
+  audioEncoding?: 'MP3' | 'OGG_OPUS' | 'LINEAR16';
+}
+
 @Injectable()
 export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
   private genAI: GoogleGenerativeAI;
   private model: any;
+  private ttsClient: textToSpeech.TextToSpeechClient;
 
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -51,6 +61,9 @@ export class GeminiService {
     this.genAI = new GoogleGenerativeAI(apiKey);
     const modelName = this.configService.get<string>('GEMINI_MODEL', 'gemini-2.0-flash');
     this.model = this.genAI.getGenerativeModel({ model: modelName });
+
+    // Initialize Text-to-Speech client
+    this.ttsClient = new textToSpeech.TextToSpeechClient();
   }
 
   private async generateContentWithRetry(prompt: string, maxRetries = 3, baseDelay = 1000): Promise<string> {
@@ -275,6 +288,39 @@ ${JSON.stringify(analysis, null, 2)}
       // If parsing fails, return original content
       this.logger.warn('Failed to format CSV, using raw content', error);
       return csvContent;
+    }
+  }
+
+  async generateQuestionAudio(text: string, options?: TTSOptions): Promise<Buffer> {
+    try {
+      this.logger.log(`Generating audio for text: ${text.substring(0, 50)}...`);
+
+      const request = {
+        input: { text },
+        voice: {
+          languageCode: options?.languageCode || 'ja-JP',
+          name: options?.voiceName || 'ja-JP-Neural2-B',
+        },
+        audioConfig: {
+          audioEncoding: options?.audioEncoding || 'MP3',
+          speakingRate: options?.speakingRate || 1.0,
+          pitch: options?.pitch || 0.0,
+        },
+      };
+
+      const [response] = await this.ttsClient.synthesizeSpeech(request);
+      
+      if (!response.audioContent) {
+        throw new Error('No audio content received from TTS');
+      }
+
+      this.logger.log('Audio generation completed');
+      
+      // Return audio content as Buffer
+      return Buffer.from(response.audioContent as Uint8Array);
+    } catch (error) {
+      this.logger.error('Error generating audio', error);
+      throw new Error(`Failed to generate audio: ${error.message}`);
     }
   }
 }

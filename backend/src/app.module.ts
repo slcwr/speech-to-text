@@ -9,6 +9,7 @@ import { join } from 'path';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { SkillSheetModule } from './modules/skill-sheet/skill-sheet.module';
+import { InterviewModule } from './modules/interview/interview.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { SkillSheetModule } from './modules/skill-sheet/skill-sheet.module';
     AuthModule,
     UserModule,
     SkillSheetModule,
+    InterviewModule,
   ],
 })
 export class AppModule {}
