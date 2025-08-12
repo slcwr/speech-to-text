@@ -2,11 +2,36 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type AIAnalysisMetadata {
+  """Analysis timestamp"""
+  analysisTimestamp: String!
+
+  """Confidence scores as JSON string"""
+  confidenceScores: String!
+
+  """AI model used for analysis"""
+  modelUsed: String!
+}
+
 enum AnalysisStatus {
   COMPLETED
   FAILED
   PENDING
   PROCESSING
+}
+
+type AnswerQualityScores {
+  """Technical accuracy score (0-100)"""
+  accuracy: Float!
+
+  """Communication clarity score (0-100)"""
+  clarity: Float!
+
+  """Answer detail level score (0-100)"""
+  detail: Float!
+
+  """Answer structure score (0-100)"""
+  structure: Float!
 }
 
 enum AnswerStatus {
@@ -40,12 +65,81 @@ type CompleteAnswerResponse {
   isInterviewComplete: Boolean!
   message: String!
   nextQuestion: InterviewQuestionResponse
+  progress: InterviewProgress!
 }
 
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
 scalar DateTime
+
+type EvaluationReportResponse {
+  """AI analysis metadata"""
+  aiAnalysisMetadata: AIAnalysisMetadata!
+
+  """Answer quality evaluation"""
+  answerQualityScores: AnswerQualityScores!
+
+  """Areas for improvement"""
+  areasForImprovement: [String!]!
+
+  """Report creation timestamp"""
+  createdAt: String!
+
+  """Detailed feedback text"""
+  detailedFeedback: String!
+
+  """Experience and achievements evaluation"""
+  experienceEvaluation: ExperienceEvaluation!
+
+  """Report ID"""
+  id: ID!
+
+  """Overall evaluation score (0-100)"""
+  overallScore: Float!
+
+  """Recommendation grade (A-E)"""
+  recommendationGrade: String!
+
+  """Recommended positions"""
+  recommendedPositions: [String!]!
+
+  """Session ID"""
+  sessionId: ID!
+
+  """Soft skills evaluation"""
+  softSkillsScores: SoftSkillsScores!
+
+  """Top strengths identified"""
+  strengths: [String!]!
+
+  """Technical skills evaluation"""
+  technicalScores: TechnicalScores!
+}
+
+type ExperienceEvaluation {
+  """Achievements score (0-100)"""
+  achievements: Float!
+
+  """Project scale experience score (0-100)"""
+  projectScale: Float!
+
+  """Experience relevance score (0-100)"""
+  relevance: Float!
+
+  """Role responsibility score (0-100)"""
+  responsibility: Float!
+}
+
+input GenerateEvaluationReportInput {
+  """Session ID for which to generate the evaluation report"""
+  sessionId: ID!
+}
+
+input GeneratePdfReportInput {
+  """Report ID for which to generate PDF"""
+  reportId: ID!
+}
 
 type InterviewAnswer {
   answer_data: String!
@@ -56,6 +150,12 @@ type InterviewAnswer {
   question_id: String!
   started_at: DateTime!
   updated_at: DateTime!
+}
+
+type InterviewProgress {
+  completed: Int!
+  remaining: Int!
+  total: Int!
 }
 
 type InterviewQuestion {
@@ -103,14 +203,32 @@ input LoginInput {
 
 type Mutation {
   completeAnswer(input: CompleteAnswerInput!): CompleteAnswerResponse!
+  generateEvaluationReport(input: GenerateEvaluationReportInput!): EvaluationReportResponse!
+  generatePdfReport(input: GeneratePdfReportInput!): PdfReportResponse!
   login(input: LoginInput!): AuthResponse!
   register(input: RegisterInput!): AuthResponse!
   startInterview(input: StartInterviewInput!): StartInterviewResponse!
 }
 
+type PdfReportResponse {
+  """Suggested filename for the PDF"""
+  filename: String!
+
+  """HTML content for PDF generation"""
+  htmlContent: String!
+
+  """Report ID"""
+  reportId: String!
+
+  """PDF title"""
+  title: String!
+}
+
 type Query {
+  getEvaluationReport(reportId: String!): EvaluationReportResponse!
   getLatestSession: InterviewSession
   getMySkillSheets: [SkillSheet!]!
+  getReportsBySession(sessionId: String!): [EvaluationReportResponse!]!
   getSkillSheet(id: String!): SkillSheet
   interviewSession(sessionId: String!): InterviewSession!
   me: User!
@@ -148,6 +266,23 @@ type SkillSheet {
   userId: String!
 }
 
+type SoftSkillsScores {
+  """Communication skills score (0-100)"""
+  communication: Float!
+
+  """Leadership skills score (0-100)"""
+  leadership: Float!
+
+  """Learning ability score (0-100)"""
+  learning: Float!
+
+  """Problem solving skills score (0-100)"""
+  problemSolving: Float!
+
+  """Teamwork skills score (0-100)"""
+  teamwork: Float!
+}
+
 input StartInterviewInput {
   sessionId: ID!
 }
@@ -163,6 +298,23 @@ type StartInterviewResponse {
 type Subscription {
   """リアルタイム音声転写結果を受信する"""
   audioTranscription(sessionId: String!): AudioTranscriptionSubscriptionResponse!
+}
+
+type TechnicalScores {
+  """Architecture design score (0-100)"""
+  architecture: Float!
+
+  """Backend technology score (0-100)"""
+  backend: Float!
+
+  """Database technology score (0-100)"""
+  database: Float!
+
+  """Frontend technology score (0-100)"""
+  frontend: Float!
+
+  """Infrastructure score (0-100)"""
+  infrastructure: Float!
 }
 
 type User {

@@ -17,6 +17,11 @@ export const COMPLETE_ANSWER = gql`
       }
       isInterviewComplete
       message
+      progress {
+        completed
+        total
+        remaining
+      }
     }
   }
 `;
@@ -50,8 +55,32 @@ export const START_INTERVIEW = gql`
   }
 `;
 
-// TypeScript interface for the input
+// TypeScript interfaces
 export interface CompleteAnswerInput {
   sessionId: string;
   questionId: string;
+}
+
+export interface StartInterviewInput {
+  sessionId: string;
+}
+
+export interface InterviewQuestion {
+  id: string;
+  sessionId: string;
+  question: string;
+  orderNumber: number;
+  metadata: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StartInterviewResponse {
+  startInterview: {
+    sessionId: string;
+    status: string;
+    startedAt: string;
+    currentQuestion: InterviewQuestion;
+    allQuestions: InterviewQuestion[];
+  };
 }

@@ -405,4 +405,11 @@ ${JSON.stringify(analysis, null, 2)}
       return 'こんにちは。音声転写のテスト中です。';
     }
   }
+
+  /**
+   * General content generation method for evaluation reports
+   */
+  async generateContent(prompt: string): Promise<string> {
+    return this.generateContentWithRetry(prompt);
+  }
 }
