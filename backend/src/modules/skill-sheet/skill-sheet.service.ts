@@ -90,6 +90,13 @@ export class SkillSheetService {
     });
   }
 
+  async getSessionBySkillSheetId(skillSheetId: string): Promise<InterviewSession | null> {
+    return this.interviewSessionRepository.findOne({
+      where: { skill_sheet_id: skillSheetId },
+      order: { created_at: 'DESC' },
+    });
+  }
+
   async updateAnalysisStatus(id: string, status: AnalysisStatus): Promise<void> {
     await this.skillSheetRepository.update(id, { analysis_status: status });
   }
@@ -131,7 +138,7 @@ export class SkillSheetService {
       // Add self introduction question
       questionEntities.push(
         this.interviewQuestionRepository.create({
-          session_id: sessionId,
+          sessionId: sessionId,
           question_type: QuestionType.SELF_INTRODUCTION,
           question_order: questionOrder++,
           question_data: {
@@ -148,7 +155,7 @@ export class SkillSheetService {
       for (const questionText of questions.technical_questions) {
         questionEntities.push(
           this.interviewQuestionRepository.create({
-            session_id: sessionId,
+            sessionId: sessionId,
             question_type: QuestionType.TECHNICAL,
             question_order: questionOrder++,
             question_data: {
@@ -167,7 +174,7 @@ export class SkillSheetService {
       for (const questionText of questions.motivation_questions) {
         questionEntities.push(
           this.interviewQuestionRepository.create({
-            session_id: sessionId,
+            sessionId: sessionId,
             question_type: QuestionType.MOTIVATION,
             question_order: questionOrder++,
             question_data: {
@@ -196,14 +203,16 @@ export class SkillSheetService {
       });
       
       // Log detailed error for debugging
-      this.logger.error(`Failed to process skill sheet ${skillSheetId}: ${error.message}`, error);
+      this.logger.error(`Failed to process skill sheet ${skillSheetId}: ${error.message}`);
+      this.logger.error(`Error stack: ${error.stack}`);
       
       // If it's an API overload error, we might want to retry later
       if (error.message?.includes('503') || error.message?.includes('overloaded')) {
         this.logger.warn('Gemini API is overloaded. Consider implementing a retry queue.');
       }
       
-      throw error;
+      // Don't throw error to prevent crash, just log it
+      // throw error;
     }
   }
 }

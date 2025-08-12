@@ -92,7 +92,7 @@ export interface InterviewSession {
 
 export interface InterviewQuestion {
   id: string;
-  session_id: string;
+  sessionId: string;
   question_type: 'self_introduction' | 'motivation' | 'technical' | 'reverse';
   question_order: number;
   question_data: QuestionData;
@@ -114,7 +114,7 @@ export interface InterviewAnswer {
 export interface AudioChunk {
   data: Buffer;
   timestamp: number;
-  session_id: string;
+  sessionId: string;
 }
 
 export interface TranscriptionChunk {

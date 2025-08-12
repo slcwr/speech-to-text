@@ -37,7 +37,7 @@ export interface InterviewQuestion {
   sessionId: string;
   question: string;
   orderNumber: number;
-  metadata?: any;
+  metadata: any;
   createdAt: string;
   updatedAt: string;
 }

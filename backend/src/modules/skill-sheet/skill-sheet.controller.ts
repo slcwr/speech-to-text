@@ -6,6 +6,7 @@ import {
   UseGuards,
   Request,
   BadRequestException,
+  Param,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -76,6 +77,34 @@ export class SkillSheetController {
       skillSheetId: skillSheet.id,
       fileName: file.originalname,
       message: 'Skill sheet uploaded successfully',
+    };
+  }
+
+  @Post('reprocess/:id')
+  async reprocessSkillSheet(
+    @Request() req: any,
+    @Param('id') skillSheetId: string,
+  ) {
+    const userId = req.user.id;
+    
+    // Verify ownership
+    const skillSheet = await this.skillSheetService.getSkillSheetById(skillSheetId);
+    if (skillSheet.user_id !== userId) {
+      throw new BadRequestException('Unauthorized');
+    }
+
+    // Find the associated session
+    const session = await this.skillSheetService.getSessionBySkillSheetId(skillSheetId);
+    if (!session) {
+      throw new BadRequestException('No session found for this skill sheet');
+    }
+
+    // Reprocess the skill sheet
+    await this.skillSheetService.processSkillSheet(skillSheetId, session.id);
+
+    return {
+      success: true,
+      message: 'Skill sheet reprocessing started',
     };
   }
 }
