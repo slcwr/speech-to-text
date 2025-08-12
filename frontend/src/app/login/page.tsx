@@ -18,8 +18,6 @@ import {
 import Link from 'next/link';
 import { LOGIN_MUTATION } from '/workspaces/speech-to-text/frontend/src/graphql/mutations/auth';
 import type { LoginMutation, LoginMutationVariables, LoginInput } from './types';
-import { UserBasicFieldsFragmentDoc } from './types';
-import { useFragment } from '../../graphql/types/fragment-masking';
 import { useApolloClient } from '@apollo/client';  
 
 export default function LoginPage() {

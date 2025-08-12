@@ -72,9 +72,15 @@ const InterviewAudioSession: React.FC<InterviewAudioSessionProps> = ({
   const [completeAnswer, { loading: completingAnswer }] = useMutation(COMPLETE_ANSWER, {
     onCompleted: (data) => {
       console.log('🎉 Mutation completed successfully:', data);
+      console.log('📊 Interview progress:', data.completeAnswer.progress);
+      
       if (data.completeAnswer.isInterviewComplete) {
-        onInterviewComplete?.();
+        console.log('🏁 Interview completed! Final progress:', data.completeAnswer.progress);
+        // Navigate to evaluation page
+        window.location.href = `/evaluation?sessionId=${sessionId}`;
       } else if (data.completeAnswer.nextQuestion) {
+        console.log('➡️ Moving to next question. Progress:', 
+          `${data.completeAnswer.progress.completed}/${data.completeAnswer.progress.total}`);
         onNextQuestion?.(data.completeAnswer.nextQuestion);
         setTranscription(''); // 転写結果をリセット
       }

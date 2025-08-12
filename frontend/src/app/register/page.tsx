@@ -18,8 +18,6 @@ import {
 import Link from 'next/link';
 import { REGISTER_MUTATION } from '/workspaces/speech-to-text/frontend/src/graphql/mutations/auth';
 import type { RegisterMutation, RegisterMutationVariables, RegisterInput } from './types';
-import { UserBasicFieldsFragmentDoc } from './types';
-import { useFragment } from '../../graphql/types/fragment-masking';
 import { useApolloClient } from '@apollo/client';  
 
 interface RegisterFormData extends RegisterInput {

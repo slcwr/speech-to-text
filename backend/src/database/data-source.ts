@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
-import { User, SkillSheet, InterviewSession, InterviewQuestion, InterviewAnswer } from './entities';
+import { User, SkillSheet, InterviewSession, InterviewQuestion, InterviewAnswer, EvaluationReport } from './entities';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -17,6 +17,7 @@ export const AppDataSource = new DataSource({
     InterviewSession,
     InterviewQuestion,
     InterviewAnswer,
+    EvaluationReport,
   ],
   migrations: [
     __dirname + '/migrations/*.ts',

@@ -42,25 +42,6 @@ import { InterviewModule } from './modules/interview/interview.module';
         'graphql-ws': true,
         'subscriptions-transport-ws': true,
       },
-      // デバッグ用のプラグイン
-      plugins: [
-        {
-          async requestDidStart() {
-            return {
-              async willSendResponse(requestContext) {
-                // completeAnswer mutationのリクエストをログ出力
-                if (requestContext.request.operationName === 'CompleteAnswer') {
-                  console.log('=== GraphQL Request Debug ===');
-                  console.log('Operation:', requestContext.request.operationName);
-                  console.log('Variables:', JSON.stringify(requestContext.request.variables, null, 2));
-                  console.log('Query:', requestContext.request.query);
-                  console.log('=============================');
-                }
-              },
-            };
-          },
-        },
-      ],
     }),
 
     // Feature modules

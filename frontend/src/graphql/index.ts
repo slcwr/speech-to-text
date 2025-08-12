@@ -1,11 +1,10 @@
 // Queries
 export * from './queries/auth';
-export * from './queries/user';
 export * from './queries/interview';
+export * from './queries/evaluation';
 
 // Mutations
 export * from './mutations/auth';
-export * from './mutations/user';
 export * from './mutations/interview';
 
 // Fragments

@@ -1,0 +1,79 @@
+@startuml 面接評価レポート生成シーケンス
+title 面接評価レポート生成シーケンス (20250812)
+
+actor User as "面接官/HR"
+participant Frontend as "フロントエンド"
+participant Backend as "バックエンドAPI"
+participant GeminiAI as "Gemini AI"
+participant Database as "データベース"
+
+== 面接完了トリガー ==
+User -> Frontend: 最終質問完了確認
+Frontend -> Backend: completeAnswer(lastQuestionId)
+Backend -> Database: 回答完了状態更新
+Backend -> Backend: 全質問完了判定
+Backend --> Frontend: isInterviewComplete: true
+
+== 評価レポート生成開始 ==
+Frontend -> User: 面接完了通知\n「評価レポート生成中...」
+Frontend -> Backend: generateEvaluationReport(sessionId)
+
+== データ収集フェーズ ==
+Backend -> Database: 面接セッション情報取得
+Database --> Backend: sessionData\n(開始時刻、終了時刻、総時間)
+
+Backend -> Database: 全回答データ取得
+Database --> Backend: answerData[]\n(質問毎の回答、音声メタデータ)
+
+Backend -> Database: スキルシート情報取得  
+Database --> Backend: skillSheetData\n(経歴、技術スタック)
+
+== AI評価分析フェーズ ==
+Backend -> GeminiAI: 技術評価依頼\n(回答内容 + 技術カテゴリ別分析)
+GeminiAI -> GeminiAI: 技術スキル評価\n・フロントエンド技術\n・バックエンド技術\n・DB設計\n・インフラ等
+GeminiAI --> Backend: 技術評価結果\n{category: score, accuracy: level}
+
+Backend -> GeminiAI: 回答品質分析依頼\n(回答テキスト + 音声メタデータ)
+GeminiAI -> GeminiAI: 品質分析\n・詳細度\n・技術的正確性\n・問題解決力\n・学習意欲
+GeminiAI --> Backend: 回答品質スコア
+
+Backend -> GeminiAI: コミュニケーション評価依頼\n(音声分析 + 回答構造)
+GeminiAI -> GeminiAI: コミュニケーション分析\n・明瞭性\n・構造化\n・理解力
+GeminiAI --> Backend: コミュニケーション評価
+
+Backend -> GeminiAI: 経験・実績評価依頼\n(スキルシート + 回答内容)
+GeminiAI -> GeminiAI: 実績分析\n・プロジェクト規模\n・役割責任\n・成果実績
+GeminiAI --> Backend: 実績評価結果
+
+== レポート統合・生成フェーズ ==
+Backend -> Backend: 評価データ統合
+note right: ・基本情報まとめ\n・カテゴリ別スコア計算\n・総合判定アルゴリズム\n・推奨ポジション決定
+
+Backend -> Backend: レポート構造化
+note right: ・強み上位3つ抽出\n・成長ポイント特定\n・客観分析データ整理\n・推奨度算出(A-E)
+
+Backend -> Database: 評価レポート保存
+Database --> Backend: reportId
+
+== レポート配信 ==
+Backend --> Frontend: evaluationReport\n{reportId, scores, recommendations}
+
+Frontend -> Frontend: レポート表示準備
+note right: ・チャート生成\n・スコア可視化\n・PDF出力準備
+
+Frontend --> User: 評価レポート表示\n・技術カテゴリ別レーダーチャート\n・総合評価サマリー\n・詳細コメント
+
+== 追加アクション ==
+User -> Frontend: レポートダウンロード要求
+Frontend -> Backend: generateReportPDF(reportId)
+Backend -> Backend: PDF生成処理
+Backend --> Frontend: PDFファイル
+Frontend --> User: PDFダウンロード
+
+User -> Frontend: 他面接官と共有
+Frontend -> Backend: shareReport(reportId, emails[])
+Backend -> Backend: 共有リンク生成
+Backend --> Frontend: 共有URL
+Frontend --> User: 共有完了通知
+
+@enduml

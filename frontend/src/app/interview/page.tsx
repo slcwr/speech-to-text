@@ -17,8 +17,8 @@ import {
   StepLabel,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import { START_INTERVIEW, StartInterviewResponse, InterviewQuestion } from '../../graphql/mutations/startInterview';
-import { COMPLETE_ANSWER } from '../../graphql/mutations/interview';
+import { START_INTERVIEW, StartInterviewResponse, InterviewQuestion, COMPLETE_ANSWER } from '../../graphql/mutations/interview';
+import { InterviewProgress } from '../../graphql/types/graphql';
 import SpeechSynthesis from '../../components/SpeechSynthesis';
 import AudioRecorder from '../../components/AudioRecorder';
 import InterviewAudioSession from '../../components/InterviewAudioSession';
@@ -33,6 +33,7 @@ const InterviewPageContent: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [isInterviewStarted, setIsInterviewStarted] = useState(false);
   const [canRecord, setCanRecord] = useState(false);
+  const [progress, setProgress] = useState<InterviewProgress | null>(null);
 
   const [startInterview, { loading, error }] = useMutation<StartInterviewResponse>(START_INTERVIEW, {
     onCompleted: (data) => {
@@ -49,6 +50,12 @@ const InterviewPageContent: React.FC = () => {
   const [completeAnswer, { loading: completingAnswer }] = useMutation(COMPLETE_ANSWER, {
     onCompleted: (data) => {
       console.log('🔍 CompleteAnswer response:', data);
+      
+      // Update progress information
+      if (data.completeAnswer.progress) {
+        setProgress(data.completeAnswer.progress);
+        console.log('📊 Progress updated:', data.completeAnswer.progress);
+      }
       
       if (data.completeAnswer.isInterviewComplete) {
         // Interview is complete
@@ -183,6 +190,14 @@ const InterviewPageContent: React.FC = () => {
                 </Step>
               ))}
             </Stepper>
+            
+            {progress && (
+              <Box sx={{ mt: 2, textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  進捗: {progress.completed}/{progress.total} 完了 (残り {progress.remaining})
+                </Typography>
+              </Box>
+            )}
           </Box>
 
           {currentQuestion && (

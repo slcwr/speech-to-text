@@ -7,7 +7,7 @@ import { useQuery, useLazyQuery } from '@apollo/client';
 import Cookies from 'js-cookie';
 import { GET_CURRENT_USER } from '/workspaces/speech-to-text/frontend/src/graphql/queries/auth';
 import { GET_LATEST_SESSION } from '/workspaces/speech-to-text/frontend/src/graphql/queries/interview';
-import type { User, GetCurrentUserQueryData } from './types';
+import type { GetCurrentUserQuery } from './types';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -15,7 +15,7 @@ export default function DashboardPage() {
   const [uploadMessage, setUploadMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const { data, loading, error } = useQuery<GetCurrentUserQueryData>(GET_CURRENT_USER);
+  const { data, loading, error } = useQuery<GetCurrentUserQuery>(GET_CURRENT_USER);
   const [getLatestSession, { data: sessionData, loading: sessionLoading }] = useLazyQuery(GET_LATEST_SESSION);
 
   console.log('get_current_user', error);

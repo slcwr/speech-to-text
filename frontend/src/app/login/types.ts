@@ -47,7 +47,9 @@ export type AuthResponse = {
 };
 
 export type CompleteAnswerInput = {
+  /** Question ID */
   questionId: Scalars['String']['input'];
+  /** Session ID */
   sessionId: Scalars['String']['input'];
 };
 
@@ -56,6 +58,7 @@ export type CompleteAnswerResponse = {
   isInterviewComplete: Scalars['Boolean']['output'];
   message: Scalars['String']['output'];
   nextQuestion: Maybe<InterviewQuestionResponse>;
+  progress: InterviewProgress;
 };
 
 export type InterviewAnswer = {
@@ -68,6 +71,13 @@ export type InterviewAnswer = {
   question_id: Scalars['String']['output'];
   started_at: Scalars['DateTime']['output'];
   updated_at: Scalars['DateTime']['output'];
+};
+
+export type InterviewProgress = {
+  __typename?: 'InterviewProgress';
+  completed: Scalars['Int']['output'];
+  remaining: Scalars['Int']['output'];
+  total: Scalars['Int']['output'];
 };
 
 export type InterviewQuestion = {
@@ -304,7 +314,10 @@ export type CompleteAnswerMutation = (
     { isInterviewComplete: boolean, message: string, nextQuestion: (
       { id: string, sessionId: string, question: string, orderNumber: number, metadata: any | null | undefined, createdAt: string, updatedAt: string }
       & { __typename?: 'InterviewQuestionResponse' }
-    ) | null | undefined }
+    ) | null | undefined, progress: (
+      { completed: number, total: number, remaining: number }
+      & { __typename?: 'InterviewProgress' }
+    ) }
     & { __typename?: 'CompleteAnswerResponse' }
   ) }
   & { __typename?: 'Mutation' }
@@ -335,30 +348,6 @@ export type GetCurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 export type GetCurrentUserQuery = (
   { me: (
     UserBasicFieldsFragment
-    & { __typename?: 'User' }
-  ) }
-  & { __typename?: 'Query' }
-);
-
-export type GetUserByIdQueryVariables = Exact<{
-  id: Scalars['String']['input'];
-}>;
-
-
-export type GetUserByIdQuery = (
-  { user: (
-    UserFieldsFragment
-    & { __typename?: 'User' }
-  ) | null | undefined }
-  & { __typename?: 'Query' }
-);
-
-export type GetUserProfileQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type GetUserProfileQuery = (
-  { me: (
-    UserFieldsFragment
     & { __typename?: 'User' }
   ) }
   & { __typename?: 'Query' }
