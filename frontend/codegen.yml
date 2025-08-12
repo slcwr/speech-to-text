@@ -2,9 +2,12 @@ overwrite: true
 schema: "../backend/src/schema.gql"
 documents: 
   - "src/graphql/mutations/auth.ts"
+  - "src/graphql/mutations/interview.ts"
   - "src/graphql/queries/auth.ts"
   - "src/graphql/queries/user.ts"
   - "src/graphql/fragments/user.ts"
+  - "src/graphql/fragments/interview.ts"
+  - "src/graphql/subscriptions/*.ts"
 generates:
   # Global types
   src/graphql/types/generated.ts:

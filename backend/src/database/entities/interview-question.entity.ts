@@ -37,9 +37,9 @@ registerEnumType(QuestionType, {
 
 @ObjectType()
 @Entity('interview_questions')
-@Index('IDX_interview_questions_session_id', ['session_id'])
+@Index('IDX_interview_questions_ssessionId', ['sessionId'])
 @Index('IDX_interview_questions_type', ['question_type'])
-@Index('IDX_interview_questions_order', ['session_id', 'question_order'])
+@Index('IDX_interview_questions_order', ['sessionId', 'question_order'])
 export class InterviewQuestion {
   @Field(() => ID)
   @PrimaryGeneratedColumn('uuid')
@@ -47,7 +47,7 @@ export class InterviewQuestion {
 
   @Field()
   @Column({ type: 'uuid' })
-  session_id: string;
+  sessionId: string;
 
   @Field(() => QuestionType)
   @Column({ type: 'varchar', length: 20 })
@@ -67,7 +67,7 @@ export class InterviewQuestion {
 
   // Relations
   @ManyToOne(() => InterviewSession, (session) => session.questions, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'session_id' })
+  @JoinColumn({ name: 'sessionId' })
   session: InterviewSession;
 
   @Field(() => InterviewAnswer, { nullable: true })

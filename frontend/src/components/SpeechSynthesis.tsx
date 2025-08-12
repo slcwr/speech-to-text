@@ -12,18 +12,34 @@ import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import ReplayIcon from '@mui/icons-material/Replay';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 
+/**
+ * Web Speech API を使用した音声合成コンポーネントのプロパティ
+ */
 interface SpeechSynthesisProps {
+  /** 読み上げるテキスト */
   text: string;
+  /** マウント時に自動再生するかどうか */
   autoPlay?: boolean;
+  /** 音声読み上げ開始時のコールバック */
   onSpeechStart?: () => void;
+  /** 音声読み上げ終了時のコールバック */
   onSpeechEnd?: () => void;
+  /** エラー発生時のコールバック */
   onSpeechError?: (error: Error) => void;
+  /** 言語設定（デフォルト: 'ja-JP'） */
   lang?: string;
+  /** 読み上げ速度（0.1〜10、デフォルト: 0.9） */
   rate?: number;
+  /** 音程（0〜2、デフォルト: 1.0） */
   pitch?: number;
+  /** 音量（0〜1、デフォルト: 1.0） */
   volume?: number;
 }
 
+/**
+ * Web Speech API を使用した音声合成コンポーネント
+ * テキストを日本語で読み上げる機能を提供します
+ */
 const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
   text,
   autoPlay = true,
@@ -35,14 +51,23 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
   pitch = 1.0,
   volume = 1.0,
 }) => {
+  // Web Speech API のサポート状況
   const [isSupported, setIsSupported] = useState(false);
+  // 現在読み上げ中かどうか
   const [isSpeaking, setIsSpeaking] = useState(false);
+  // 一時停止中かどうか
   const [isPaused, setIsPaused] = useState(false);
+  // 利用可能な音声リスト
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  // 音声機能の初期化中かどうか
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check Web Speech API support
+  /**
+   * Web Speech API のサポート状況をチェックし、利用可能な音声を取得する
+   */
   useEffect(() => {
+    let fallbackTimer: NodeJS.Timeout | null = null;
+    
     const checkSupport = () => {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         setIsSupported(true);
@@ -53,18 +78,20 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
           setIsLoading(false);
         };
 
-        // Load voices
+        // 音声リストを読み込み
         loadVoices();
         
-        // Some browsers load voices asynchronously
+        // ブラウザによっては音声が非同期で読み込まれるため、イベントリスナーを設定
         if (window.speechSynthesis.onvoiceschanged !== undefined) {
           window.speechSynthesis.onvoiceschanged = loadVoices;
         }
 
-        // Fallback timeout
-        setTimeout(() => {
-          if (voices.length === 0) {
-            loadVoices();
+        // フォールバックタイマー（音声読み込み完了を保証）
+        fallbackTimer = setTimeout(() => {
+          const currentVoices = window.speechSynthesis.getVoices();
+          if (currentVoices.length > 0) {
+            setVoices(currentVoices);
+            setIsLoading(false);
           }
         }, 1000);
       } else {
@@ -75,28 +102,35 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
 
     checkSupport();
 
-    // Cleanup
+    // クリーンアップ処理
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+      }
     };
-  }, [voices.length]);
+  }, []);
 
+  /**
+   * テキストを音声で読み上げる
+   */
   const speak = useCallback(() => {
     if (!isSupported || !text || isSpeaking) return;
 
     try {
-      // Cancel any ongoing speech
+      // 実行中の音声があればキャンセル
       window.speechSynthesis.cancel();
 
+      // 音声合成オブジェクトを作成
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = lang;
       utterance.rate = rate;
       utterance.pitch = pitch;
       utterance.volume = volume;
 
-      // Find the best voice for the language
+      // 指定言語に最適な音声を選択
       const preferredVoice = voices.find(voice => 
         voice.lang === lang || voice.lang.startsWith(lang.split('-')[0])
       );
@@ -105,7 +139,7 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
         utterance.voice = preferredVoice;
       }
 
-      // Event handlers
+      // 音声読み上げイベントハンドラーを設定
       utterance.onstart = () => {
         setIsSpeaking(true);
         setIsPaused(false);
@@ -134,7 +168,7 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
         setIsPaused(false);
       };
 
-      // Start speech
+      // 音声読み上げを開始
       window.speechSynthesis.speak(utterance);
 
     } catch (error) {
@@ -144,6 +178,9 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
     }
   }, [isSupported, text, isSpeaking, lang, rate, pitch, volume, voices, onSpeechStart, onSpeechEnd, onSpeechError]);
 
+  /**
+   * 音声読み上げを停止する
+   */
   const stop = useCallback(() => {
     if (isSupported && (isSpeaking || isPaused)) {
       window.speechSynthesis.cancel();
@@ -152,27 +189,41 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
     }
   }, [isSupported, isSpeaking, isPaused]);
 
+  /**
+   * 音声読み上げを再生する（停止してから再開）
+   */
   const replay = useCallback(() => {
     stop();
-    // Small delay to ensure the previous speech is fully stopped
+    // 前の音声が確実に停止されるまで少し待つ
     setTimeout(() => {
       speak();
     }, 100);
   }, [stop, speak]);
 
-  // Auto-play on mount
+  /**
+   * 自動再生機能：テキストが変更された時に自動で読み上げを開始
+   */
   useEffect(() => {
-    if (autoPlay && !isLoading && isSupported && text && !isSpeaking) {
-      // Small delay to ensure component is fully mounted
+    if (autoPlay && !isLoading && isSupported && text.trim()) {
+      // 既に実行中の音声があればキャンセル
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+      
+      // コンポーネントのマウント完了と前の音声のキャンセルを確実にするため少し遅延
       const timer = setTimeout(() => {
-        speak();
+        if (!isSpeaking) { // 読み上げ状態を再確認してから実行
+          speak();
+        }
       }, 500);
 
       return () => clearTimeout(timer);
     }
-  }, [autoPlay, isLoading, isSupported, text, isSpeaking, speak]);
+  }, [text]); // テキストの変更のみを監視
 
-  // Cleanup on unmount
+  /**
+   * アンマウント時のクリーンアップ処理
+   */
   useEffect(() => {
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -181,6 +232,7 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
     };
   }, []);
 
+  // 音声機能初期化中の表示
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 2 }}>
@@ -192,6 +244,7 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
     );
   }
 
+  // Web Speech API 非対応ブラウザ用の表示
   if (!isSupported) {
     return (
       <Alert severity="warning" sx={{ my: 2 }}>
@@ -200,14 +253,17 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
     );
   }
 
+  // メインUI（音声コントロール）の表示
   return (
     <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1, my: 2 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        {/* 音声状態インディケーター */}
         <VolumeUpIcon 
           color={isSpeaking ? 'primary' : 'action'} 
           sx={{ fontSize: 20 }}
         />
         
+        {/* 状態表示テキスト */}
         <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
           {isSpeaking ? (
             isPaused ? '音声を一時停止中...' : '質問を読み上げています...'
@@ -216,6 +272,7 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
           )}
         </Typography>
 
+        {/* 再生ボタン */}
         <IconButton
           onClick={replay}
           size="small"
@@ -225,6 +282,7 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
           <ReplayIcon fontSize="small" />
         </IconButton>
 
+        {/* 停止ボタン（読み上げ中のみ表示） */}
         {isSpeaking && (
           <IconButton
             onClick={stop}
@@ -236,6 +294,7 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
         )}
       </Box>
       
+      {/* 使用中音声の情報表示 */}
       {voices.length > 0 && (
         <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
           使用中の音声: {voices.find(v => v.lang === lang)?.name || 'デフォルト'}

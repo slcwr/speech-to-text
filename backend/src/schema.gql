@@ -15,9 +15,31 @@ enum AnswerStatus {
   IN_PROGRESS
 }
 
+type AudioTranscriptionSubscriptionResponse {
+  questionId: String!
+  sessionId: String!
+  timestamp: String!
+  transcription: String!
+  userId: String!
+}
+
 type AuthResponse {
   token: String!
   user: User!
+}
+
+input CompleteAnswerInput {
+  """Question ID"""
+  questionId: String!
+
+  """Session ID"""
+  sessionId: String!
+}
+
+type CompleteAnswerResponse {
+  isInterviewComplete: Boolean!
+  message: String!
+  nextQuestion: InterviewQuestionResponse
 }
 
 """
@@ -43,7 +65,17 @@ type InterviewQuestion {
   question_data: String!
   question_order: Float!
   question_type: QuestionType!
-  session_id: String!
+  sessionId: String!
+}
+
+type InterviewQuestionResponse {
+  createdAt: DateTime!
+  id: ID!
+  metadata: JSON
+  orderNumber: Int!
+  question: String!
+  sessionId: ID!
+  updatedAt: DateTime!
 }
 
 type InterviewSession {
@@ -59,20 +91,28 @@ type InterviewSession {
   userId: String!
 }
 
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+
 input LoginInput {
   email: String!
   password: String!
 }
 
 type Mutation {
+  completeAnswer(input: CompleteAnswerInput!): CompleteAnswerResponse!
   login(input: LoginInput!): AuthResponse!
   register(input: RegisterInput!): AuthResponse!
+  startInterview(input: StartInterviewInput!): StartInterviewResponse!
 }
 
 type Query {
   getLatestSession: InterviewSession
   getMySkillSheets: [SkillSheet!]!
   getSkillSheet(id: String!): SkillSheet
+  interviewSession(sessionId: String!): InterviewSession!
   me: User!
   user(id: String!): User
 }
@@ -106,6 +146,23 @@ type SkillSheet {
   skillData: String!
   updatedAt: DateTime!
   userId: String!
+}
+
+input StartInterviewInput {
+  sessionId: ID!
+}
+
+type StartInterviewResponse {
+  allQuestions: [InterviewQuestionResponse!]!
+  currentQuestion: InterviewQuestionResponse!
+  sessionId: ID!
+  startedAt: DateTime!
+  status: String!
+}
+
+type Subscription {
+  """リアルタイム音声転写結果を受信する"""
+  audioTranscription(sessionId: String!): AudioTranscriptionSubscriptionResponse!
 }
 
 type User {

@@ -41,7 +41,7 @@ entity "interview_sessions" as interview_sessions {
 entity "interview_questions" as interview_questions {
   * id : UUID <<PK>>
   --
-  * session_id : UUID <<FK>>
+  * "sessionId" : UUID <<FK>>
   * question_type : VARCHAR(20)
   * question_order : INTEGER
   * question_data : JSONB

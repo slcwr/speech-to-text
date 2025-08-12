@@ -1,0 +1,209 @@
+@startuml current_implementation_202508010
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam sequence {
+    ArrowColor #005500
+    ActorBorderColor #005500
+    LifeLineBorderColor #005500
+    ParticipantBorderColor #005500
+    ParticipantBackgroundColor #DDFFDD
+    ActorBackgroundColor #DDFFDD
+}
+
+title 面接システム実装済み機能 (2025年1月10日時点)
+
+actor "User" as User
+box "Frontend (Next.js)" #LightBlue
+    participant "Login/Register\nPage" as AuthPage
+    participant "Dashboard" as Dashboard
+    participant "Interview\nComponent" as InterviewApp
+    participant "SpeechSynthesis\nComponent" as SpeechSynthesis
+    participant "Apollo Client" as ApolloClient
+end box
+
+box "Backend (Nest.js)" #LightGreen
+    participant "GraphQL\nGateway" as GraphQLGateway
+    participant "Auth Guard" as AuthGuard
+    participant "User\nResolver" as UserResolver
+    participant "Interview\nResolver" as InterviewResolver
+    participant "Skill Sheet\nController" as SkillSheetController
+    participant "User Service" as UserService
+    participant "Interview\nService" as InterviewService
+    participant "Skill Sheet\nService" as SkillSheetService
+    participant "Gemini Service" as GeminiService
+end box
+
+box "Database (PostgreSQL + TypeORM)" #LightYellow
+    database "User\nEntity" as UserDB
+    database "SkillSheet\nEntity" as SkillDB
+    database "Session\nEntity" as SessionDB
+    database "Question\nEntity" as QuestionDB
+    database "Answer\nEntity" as AnswerDB
+end box
+
+database "File Storage\n(Local)" as FileStorage
+
+== 実装済み: ユーザー登録 ==
+User -> AuthPage: 登録画面にアクセス
+AuthPage -> ApolloClient: mutation { register }
+ApolloClient -> GraphQLGateway: POST /graphql\n{register(input)}
+GraphQLGateway -> UserResolver: register(input)
+UserResolver -> UserService: createUser(dto)
+UserService -> UserService: パスワードハッシュ化 (bcrypt)
+UserService -> UserDB: save(user)
+UserDB --> UserService: User entity
+UserService -> UserService: JWT生成
+UserService --> UserResolver: {user, token}
+UserResolver --> GraphQLGateway: RegisterResponse
+GraphQLGateway --> ApolloClient: {data: {register}}
+ApolloClient -> ApolloClient: キャッシュ更新\nトークン保存
+ApolloClient --> AuthPage: 成功
+AuthPage -> Dashboard: ダッシュボードへ遷移
+
+== 実装済み: ログイン ==
+User -> AuthPage: 認証情報入力
+AuthPage -> ApolloClient: mutation { login }
+ApolloClient -> GraphQLGateway: POST /graphql\n{login(email, password)}
+GraphQLGateway -> UserResolver: login(email, password)
+UserResolver -> UserService: validateUser(email, password)
+UserService -> UserDB: findOne({email})
+UserDB --> UserService: User entity
+UserService -> UserService: パスワード検証
+UserService -> UserService: JWT生成
+UserService --> UserResolver: {user, token}
+UserResolver --> GraphQLGateway: LoginResponse
+GraphQLGateway --> ApolloClient: {data: {login}}
+ApolloClient -> ApolloClient: キャッシュ更新\nトークン保存
+ApolloClient --> AuthPage: 成功
+AuthPage -> Dashboard: ダッシュボードへ遷移
+
+== 実装済み: スキルシートアップロード ==
+User -> Dashboard: スキルシートファイル選択
+note over Dashboard
+対応ファイル形式:
+- PDF
+- DOCX (Word)
+- XLSX/XLS (Excel)
+サイズ制限: 20MB以下
+end note
+
+Dashboard -> Dashboard: ファイルタイプとサイズ検証
+Dashboard -> Dashboard: FormData準備
+Dashboard -> SkillSheetController: POST /api/upload\n(multipart/form-data)\nAuthorization: Bearer JWT
+SkillSheetController -> AuthGuard: JWT検証
+AuthGuard --> SkillSheetController: User context
+SkillSheetController -> SkillSheetController: ファイル処理 (multer)
+
+alt Excel ファイル (.xlsx/.xls)
+    SkillSheetController -> SkillSheetController: Excel形式検出
+    SkillSheetController -> SkillSheetController: ExcelからCSVへ変換\n(xlsx library使用)
+    note right of SkillSheetController
+    Excel → CSV 変換:
+    - シート解析
+    - データ抽出
+    - UTF-8 CSV変換
+    - 構造保持
+    end note
+    SkillSheetController -> FileStorage: 変換済みCSV保存
+else PDF/DOCX ファイル
+    SkillSheetController -> FileStorage: オリジナルファイル保存
+end
+
+FileStorage --> SkillSheetController: ファイルパス
+
+SkillSheetController -> SkillSheetService: uploadSkillSheet(userId, path, fileName)
+SkillSheetService -> GeminiService: analyzeDocument(path, format)
+GeminiService -> GeminiService: テキスト抽出\nスキル分析
+note right of GeminiService
+分析内容:
+- 技術スキル
+- 経験年数
+- プロジェクト
+- 強み/弱み
+end note
+GeminiService --> SkillSheetService: 分析結果
+
+SkillSheetService -> SkillDB: save(skillSheet)
+SkillDB --> SkillSheetService: SkillSheet entity
+SkillSheetService -> SessionDB: save(session)
+SessionDB --> SkillSheetService: Session entity
+
+SkillSheetService -> GeminiService: generateQuestions(analysis)
+GeminiService --> SkillSheetService: 質問リスト
+SkillSheetService -> QuestionDB: saveAll(questions)
+QuestionDB --> SkillSheetService: 保存済み質問
+
+SkillSheetService --> SkillSheetController: {skillSheetId, sessionId}
+SkillSheetController --> Dashboard: アップロード完了
+
+== 実装済み: 面接開始とブラウザTTS ==
+User -> InterviewApp: 面接開始ボタンクリック
+InterviewApp -> ApolloClient: mutation { startInterview }
+ApolloClient -> GraphQLGateway: POST /graphql\n{startInterview(sessionId)}
+GraphQLGateway -> AuthGuard: トークン検証
+AuthGuard --> GraphQLGateway: 認証済み
+GraphQLGateway -> InterviewResolver: startInterview(sessionId)
+InterviewResolver -> InterviewService: startSession(sessionId, userId)
+InterviewService -> SessionDB: ステータス更新 (IN_PROGRESS)
+InterviewService -> QuestionDB: 最初の質問取得
+QuestionDB --> InterviewService: Question entity
+
+InterviewService -> AnswerDB: 回答レコード作成 (IN_PROGRESS)
+AnswerDB --> InterviewService: Answer entity
+
+InterviewService --> InterviewResolver: 現在の質問（テキストのみ）
+InterviewResolver --> GraphQLGateway: 質問データ
+GraphQLGateway --> ApolloClient: {data: {startInterview}}
+InterviewApp -> InterviewApp: 質問表示
+
+== 実装済み: ブラウザでの音声読み上げ (Web Speech API) ==
+InterviewApp -> SpeechSynthesis: 質問テキスト渡す
+SpeechSynthesis -> SpeechSynthesis: Web Speech API対応確認
+
+alt Web Speech API対応
+    SpeechSynthesis -> SpeechSynthesis: 音声リスト取得
+    SpeechSynthesis -> SpeechSynthesis: ja-JP音声選択
+    SpeechSynthesis -> SpeechSynthesis: SpeechSynthesisUtterance作成
+    note right of SpeechSynthesis
+    TTS設定:
+    - lang: 'ja-JP'
+    - rate: 0.9 (やや遅め)
+    - pitch: 1.0
+    - volume: 1.0
+    end note
+    
+    SpeechSynthesis -> SpeechSynthesis: speechSynthesis.speak()実行
+    SpeechSynthesis -> SpeechSynthesis: onstart イベント
+    SpeechSynthesis -> InterviewApp: 読み上げ開始通知
+    InterviewApp -> InterviewApp: 録音ボタン無効化
+    SpeechSynthesis -> User: ブラウザTTSで質問再生
+    
+    SpeechSynthesis -> SpeechSynthesis: onend イベント
+    SpeechSynthesis -> InterviewApp: 読み上げ終了通知
+    InterviewApp -> InterviewApp: 録音ボタン有効化
+    
+    note over SpeechSynthesis
+    追加機能:
+    - 再生ボタン
+    - 停止ボタン
+    - 音声選択表示
+    end note
+    
+else Web Speech API非対応
+    SpeechSynthesis -> SpeechSynthesis: 警告メッセージ表示
+    SpeechSynthesis -> User: テキストのみ表示
+    SpeechSynthesis -> InterviewApp: 録音ボタン即座に有効化
+end
+
+== 未実装: 音声録音と文字起こし ==
+note over InterviewApp
+以下の機能は未実装:
+- 音声録音機能
+- リアルタイム文字起こし
+- WebSocket通信
+- 回答の保存
+- 次の質問への遷移
+- フィードバック生成
+end note
+
+@enduml

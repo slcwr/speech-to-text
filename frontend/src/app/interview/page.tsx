@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation } from '@apollo/client';
 import {
@@ -17,11 +17,13 @@ import {
   StepLabel,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import MicIcon from '@mui/icons-material/Mic';
 import { START_INTERVIEW, StartInterviewResponse, InterviewQuestion } from '../../graphql/mutations/startInterview';
+import { COMPLETE_ANSWER } from '../../graphql/mutations/interview';
 import SpeechSynthesis from '../../components/SpeechSynthesis';
+import AudioRecorder from '../../components/AudioRecorder';
+import InterviewAudioSession from '../../components/InterviewAudioSession';
 
-const InterviewPage: React.FC = () => {
+const InterviewPageContent: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId');
@@ -44,6 +46,37 @@ const InterviewPage: React.FC = () => {
     },
   });
 
+  const [completeAnswer, { loading: completingAnswer }] = useMutation(COMPLETE_ANSWER, {
+    onCompleted: (data) => {
+      console.log('🔍 CompleteAnswer response:', data);
+      
+      if (data.completeAnswer.isInterviewComplete) {
+        // Interview is complete
+        console.log('✅ Interview completed:', data.completeAnswer.message);
+        // TODO: Navigate to results page
+      } else if (data.completeAnswer.nextQuestion) {
+        // Move to next question
+        console.log('📝 Moving to next question:', data.completeAnswer.nextQuestion);
+        console.log('📝 Current question before update:', currentQuestion);
+        
+        setCurrentQuestion(data.completeAnswer.nextQuestion);
+        setActiveStep(prev => {
+          const newStep = prev + 1;
+          console.log('📊 Active step updated from', prev, 'to', newStep);
+          return newStep;
+        });
+        setCanRecord(false); // Reset recording state for new question
+        
+        console.log('🎯 Question transition completed');
+      } else {
+        console.warn('⚠️ No next question in response, but interview not complete');
+      }
+    },
+    onError: (error) => {
+      console.error('❌ Failed to complete answer:', error);
+    },
+  });
+
   useEffect(() => {
     if (!sessionId) {
       router.push('/dashboard');
@@ -60,6 +93,34 @@ const InterviewPage: React.FC = () => {
         },
       },
     });
+  };
+
+  const handleRecordingStop = async (blob: Blob) => {
+    if (!sessionId || !currentQuestion) {
+      console.error('Missing sessionId or currentQuestion');
+      return;
+    }
+
+    console.log('🎤 Recording stopped, blob size:', blob.size);
+    console.log('📝 Processing question:', currentQuestion.orderNumber, '-', currentQuestion.question.substring(0, 50));
+    
+    // TODO: Process the audio blob - upload to server for transcription if needed
+    // For now, we'll just call completeAnswer to move to next question
+    
+    try {
+      console.log('🚀 Calling completeAnswer mutation...');
+      await completeAnswer({
+        variables: {
+          input: {
+            sessionId,
+            questionId: currentQuestion.id,
+          },
+        },
+      });
+      console.log('✅ CompleteAnswer mutation called successfully');
+    } catch (error) {
+      console.error('❌ Error completing answer:', error);
+    }
   };
 
   const getStepLabels = () => {
@@ -125,49 +186,43 @@ const InterviewPage: React.FC = () => {
           </Box>
 
           {currentQuestion && (
-            <Card>
-              <CardContent>
-                <Typography variant="h6" color="primary" gutterBottom>
-                  質問 {currentQuestion.orderNumber}
-                </Typography>
-                <Typography variant="h5" component="div" sx={{ mt: 2, mb: 3 }}>
-                  {currentQuestion.question}
-                </Typography>
-                
-                <SpeechSynthesis
-                  text={currentQuestion.question}
-                  autoPlay={true}
-                  onSpeechStart={() => setCanRecord(false)}
-                  onSpeechEnd={() => setCanRecord(true)}
-                  onSpeechError={(error) => {
-                    console.error('Speech synthesis error:', error);
-                    setCanRecord(true); // エラー時も録音可能にする
-                  }}
-                  lang="ja-JP"
-                  rate={0.9}
-                />
-                
-                <Box sx={{ mt: 4, textAlign: 'center' }}>
-                  <Button
-                    variant="contained"
-                    color="secondary"
-                    size="large"
-                    startIcon={<MicIcon />}
-                    disabled={!canRecord}
-                    sx={{ px: 4, py: 1.5 }}
-                  >
-                    {canRecord ? '録音を開始' : '質問読み上げ中...'}
-                  </Button>
-                  <Typography variant="caption" display="block" sx={{ mt: 1 }} color="text.secondary">
-                    音声録音機能は次のステップで実装されます
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Card>
+            <InterviewAudioSession
+              sessionId={sessionId!}
+              currentQuestion={currentQuestion}
+              totalQuestions={allQuestions.length}
+              onNextQuestion={(question) => {
+                console.log('Moving to next question:', question);
+                setCurrentQuestion(question);
+                setActiveStep(prev => prev + 1);
+                setCanRecord(false);
+              }}
+              onInterviewComplete={() => {
+                console.log('Interview completed');
+                // TODO: Navigate to results page
+              }}
+              onError={(error) => {
+                console.error('Interview audio session error:', error);
+              }}
+            />
           )}
         </>
       )}
     </Container>
+  );
+};
+
+const InterviewPage: React.FC = () => {
+  return (
+    <Suspense fallback={
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4, textAlign: 'center' }}>
+        <CircularProgress />
+        <Typography variant="body1" sx={{ mt: 2 }}>
+          読み込み中...
+        </Typography>
+      </Container>
+    }>
+      <InterviewPageContent />
+    </Suspense>
   );
 };
 
