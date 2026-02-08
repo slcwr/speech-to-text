@@ -11,7 +11,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SkillSheetService } from './skill-sheet.service';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -39,15 +39,15 @@ export class SkillSheetController {
     if (fileExtension === '.xlsx' || fileExtension === '.xls') {
       try {
         // Convert Excel to CSV
-        const workbook = XLSX.readFile(file.path);
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const csvData = XLSX.utils.sheet_to_csv(worksheet, { 
-          FS: ',',
-          RS: '\n',
-          strip: true,
-          blankrows: false
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(file.path);
+        const worksheet = workbook.worksheets[0];
+        const rows: string[] = [];
+        worksheet.eachRow((row) => {
+          const values = (row.values as any[]).slice(1); // ExcelJS の row.values は 1-indexed（[0] は空）
+          rows.push(values.map(v => v ?? '').join(','));
         });
+        const csvData = rows.join('\n');
 
         // Save CSV file
         const csvFileName = file.filename.replace(/\.(xlsx|xls)$/i, '.csv');

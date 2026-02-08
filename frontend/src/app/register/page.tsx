@@ -16,7 +16,7 @@ import {
   Link as MuiLink,
 } from '@mui/material';
 import Link from 'next/link';
-import { REGISTER_MUTATION } from '/workspaces/speech-to-text/frontend/src/graphql/mutations/auth';
+import { REGISTER_MUTATION } from '@/graphql/mutations/auth';
 import type { RegisterMutation, RegisterMutationVariables, RegisterInput } from './types';
 import { useApolloClient } from '@apollo/client';  
 

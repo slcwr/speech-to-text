@@ -320,8 +320,11 @@ export default function EvaluationDashboard({ evaluation }: EvaluationDashboardP
                     cy="50%"
                     outerRadius={80}
                     dataKey="value"
-                    label={({ name, value }) => `${name}: ${value?.toFixed(1) || 0}`}
-                    labelStyle={{ fill: COLORS.text.primary }}
+                    label={({ name, value, x, y }: { name?: string; value?: number; x?: number; y?: number }) => (
+                      <text x={x} y={y} fill={COLORS.text.primary} textAnchor="middle" dominantBaseline="central">
+                        {`${name}: ${value?.toFixed(1) || 0}`}
+                      </text>
+                    )}
                   >
                     {qualityData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />

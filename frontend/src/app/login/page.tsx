@@ -16,7 +16,7 @@ import {
   Link as MuiLink,
 } from '@mui/material';
 import Link from 'next/link';
-import { LOGIN_MUTATION } from '/workspaces/speech-to-text/frontend/src/graphql/mutations/auth';
+import { LOGIN_MUTATION } from '@/graphql/mutations/auth';
 import type { LoginMutation, LoginMutationVariables, LoginInput } from './types';
 import { useApolloClient } from '@apollo/client';  
 

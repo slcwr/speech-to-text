@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Container, Typography, Box, Button, Paper, Alert, CircularProgress, LinearProgress } from '@mui/material';
 import { useQuery, useLazyQuery } from '@apollo/client';
 import Cookies from 'js-cookie';
-import { GET_CURRENT_USER } from '/workspaces/speech-to-text/frontend/src/graphql/queries/auth';
-import { GET_LATEST_SESSION } from '/workspaces/speech-to-text/frontend/src/graphql/queries/interview';
+import { GET_CURRENT_USER } from '@/graphql/queries/auth';
+import { GET_LATEST_SESSION } from '@/graphql/queries/interview';
 import type { GetCurrentUserQuery } from './types';
 
 export default function DashboardPage() {
