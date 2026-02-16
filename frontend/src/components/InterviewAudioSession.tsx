@@ -97,19 +97,17 @@ const InterviewAudioSession: React.FC<InterviewAudioSessionProps> = ({
     },
   });
 
-  // リアルタイム転写のサブスクリプション（一時的に無効化 - WebSocket認証問題のため）
-  // const { data: subscriptionData, error: subscriptionError } = useSubscription(
-  //   AUDIO_TRANSCRIPTION_SUBSCRIPTION,
-  //   {
-  //     variables: { sessionId },
-  //     onError: (error) => {
-  //       console.error('Transcription subscription error:', error);
-  //       setError('転写結果の受信でエラーが発生しました');
-  //     },
-  //   }
-  // );
-  const subscriptionData = null;
-  const subscriptionError = null;
+  // リアルタイム転写のサブスクリプション
+  const { data: subscriptionData, error: subscriptionError } = useSubscription(
+    AUDIO_TRANSCRIPTION_SUBSCRIPTION,
+    {
+      variables: { sessionId },
+      onError: (error) => {
+        console.error('Transcription subscription error:', error);
+        setError('転写結果の受信でエラーが発生しました');
+      },
+    }
+  );
 
   /**
    * 音声チャンクをサーバーに送信してリアルタイム転写
@@ -204,18 +202,15 @@ const InterviewAudioSession: React.FC<InterviewAudioSessionProps> = ({
 
   /**
    * リアルタイム転写結果の更新
-   * 注：現在WebSocket認証問題のためサブスクリプションは無効化中
    */
   useEffect(() => {
-    // サブスクリプションが有効化されたら以下のコードを使用
-    // if (subscriptionData?.audioTranscription) {
-    //   const newTranscription = subscriptionData.audioTranscription.transcription;
-    //   setTranscription(prev => {
-    //     // 重複除去と自然な文章の結合
-    //     const combined = prev + ' ' + newTranscription;
-    //     return combined.trim();
-    //   });
-    // }
+    if (subscriptionData?.audioTranscription) {
+      const newTranscription = subscriptionData.audioTranscription.transcription;
+      setTranscription(prev => {
+        const combined = prev + ' ' + newTranscription;
+        return combined.trim();
+      });
+    }
   }, [subscriptionData]);
 
   /**

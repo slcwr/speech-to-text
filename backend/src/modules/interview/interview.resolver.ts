@@ -1,4 +1,4 @@
-import { Resolver, Mutation, Args, Query, Subscription } from '@nestjs/graphql';
+import { Resolver, Mutation, Args, Query, Subscription, Context } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { InterviewService } from './interview.service';
 import { GqlAuthGuard } from '../../common/guards/gql-auth.guard';
@@ -86,6 +86,9 @@ export class InterviewResolver {
   @Subscription(() => AudioTranscriptionSubscriptionResponse, {
     name: 'audioTranscription',
     description: 'リアルタイム音声転写結果を受信する',
+    filter: (payload, variables) => {
+      return payload.audioTranscription.sessionId === variables.sessionId;
+    },
   })
   audioTranscription(
     @Args('sessionId') sessionId: string,

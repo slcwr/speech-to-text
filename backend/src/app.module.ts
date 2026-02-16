@@ -10,6 +10,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { SkillSheetModule } from './modules/skill-sheet/skill-sheet.module';
 import { InterviewModule } from './modules/interview/interview.module';
+import { AudioModule } from './modules/audio/audio.module';
 
 @Module({
   imports: [
@@ -37,10 +38,41 @@ import { InterviewModule } from './modules/interview/interview.module';
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
       sortSchema: true,
       playground: process.env.NODE_ENV !== 'production',
-      context: ({ req }) => ({ req }),
+      context: ({ req, connection }: any) => {
+        if (req) {
+          // HTTP リクエスト
+          return { req };
+        }
+        // WebSocket 接続（connectionParams から構築した req を使用）
+        return { req: connection?.context?.req };
+      },
       subscriptions: {
-        'graphql-ws': true,
-        'subscriptions-transport-ws': true,
+        'graphql-ws': {
+          onConnect: (context: any) => {
+            const { connectionParams } = context;
+            if (connectionParams?.authToken) {
+              // connectionParamsのトークンをreqヘッダーに変換
+              context.req = {
+                headers: {
+                  authorization: `Bearer ${connectionParams.authToken}`,
+                },
+              };
+            }
+          },
+        },
+        'subscriptions-transport-ws': {
+          onConnect: (connectionParams: any) => {
+            if (connectionParams?.authToken) {
+              return {
+                req: {
+                  headers: {
+                    authorization: `Bearer ${connectionParams.authToken}`,
+                  },
+                },
+              };
+            }
+          },
+        },
       },
     }),
 
@@ -49,6 +81,7 @@ import { InterviewModule } from './modules/interview/interview.module';
     UserModule,
     SkillSheetModule,
     InterviewModule,
+    AudioModule,
   ],
 })
 export class AppModule {}

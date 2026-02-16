@@ -2,15 +2,15 @@ import {
   Controller,
   Post,
   UseGuards,
-  Request,
-  Headers,
+  Req,
   Body,
+  Headers,
   BadRequestException,
   InternalServerErrorException,
+  RawBodyRequest,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AudioService } from './audio.service';
-import { Readable } from 'stream';
 
 /**
  * 音声ストリーミングとリアルタイム転写を処理するコントローラー
@@ -26,16 +26,16 @@ export class AudioController {
    */
   @Post('stream')
   async streamAudioChunk(
-    @Body() audioData: Buffer,
     @Headers('sessionId') sessionId: string,
     @Headers('questionId') questionId: string,
     @Headers('content-type') contentType: string,
-    @Request() req: any,
+    @Req() req: RawBodyRequest<Request> & { user: any },
   ) {
     if (!sessionId || !questionId) {
       throw new BadRequestException('Missing sessionId or questionId in headers');
     }
 
+    const audioData = req.rawBody;
     if (!audioData || !Buffer.isBuffer(audioData)) {
       throw new BadRequestException('Invalid audio data');
     }
@@ -73,7 +73,7 @@ export class AudioController {
   async completeRecording(
     @Body('questionId') questionId: string,
     @Body('sessionId') sessionId: string,
-    @Request() req: any,
+    @Req() req: any,
   ) {
     if (!questionId || !sessionId) {
       throw new BadRequestException('Missing questionId or sessionId');
