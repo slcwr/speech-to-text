@@ -37,7 +37,7 @@ registerEnumType(QuestionType, {
 
 @ObjectType()
 @Entity('interview_questions')
-@Index('IDX_interview_questions_ssessionId', ['sessionId'])
+@Index('IDX_interview_questions_sessionId', ['sessionId'])
 @Index('IDX_interview_questions_type', ['question_type'])
 @Index('IDX_interview_questions_order', ['sessionId', 'question_order'])
 export class InterviewQuestion {

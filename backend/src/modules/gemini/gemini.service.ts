@@ -399,10 +399,7 @@ ${JSON.stringify(analysis, null, 2)}
       return transcription;
     } catch (error) {
       this.logger.error('Error transcribing audio', error);
-      
-      // フォールバック: 音声転写に失敗した場合、デモ用の固定テキストを返す
-      this.logger.warn('Using fallback transcription for testing');
-      return 'こんにちは。音声転写のテスト中です。';
+      throw new Error(`音声転写に失敗しました: ${error.message}`);
     }
   }
 

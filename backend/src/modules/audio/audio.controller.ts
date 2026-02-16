@@ -77,7 +77,6 @@ export class AudioController {
   ) {
     if (!questionId || !sessionId) {
       throw new BadRequestException('Missing questionId or sessionId');
-      console.log('Missing questionId or sessionId');
     }
 
     const userId = req.user.id;
