@@ -1,16 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Container, Typography, Box, Button, Paper, Alert, CircularProgress, LinearProgress } from '@mui/material';
 import { useQuery, useLazyQuery } from '@apollo/client';
 import Cookies from 'js-cookie';
 import { GET_CURRENT_USER } from '@/graphql/queries/auth';
 import { GET_LATEST_SESSION } from '@/graphql/queries/interview';
 import type { GetCurrentUserQuery } from './types';
+import { logoutAction } from '../actions/auth';
 
 export default function DashboardPage() {
-  const router = useRouter();
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadMessage, setUploadMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -21,20 +20,8 @@ export default function DashboardPage() {
   console.log('get_current_user', error);
 
   useEffect(() => {
-    const token = Cookies.get('token');
-    if (!token) {
-      router.push('/login');
-    } else {
-      // Check for existing session
-      getLatestSession();
-    }
-  }, [router, getLatestSession]);
-
-  const handleLogout = () => {
-    Cookies.remove('token');
-    Cookies.remove('user');
-    router.push('/');
-  };
+    getLatestSession();
+  }, [getLatestSession]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -126,7 +113,7 @@ export default function DashboardPage() {
 
   const handleStartInterview = () => {
     if (sessionData?.getLatestSession?.id) {
-      router.push(`/interview?sessionId=${sessionData.getLatestSession.id}`);
+      window.location.href = `/interview?sessionId=${sessionData.getLatestSession.id}`;
     }
   };
 
@@ -162,9 +149,11 @@ export default function DashboardPage() {
           <Typography variant="h4" component="h1">
             Dashboard
           </Typography>
-          <Button variant="outlined" onClick={handleLogout}>
-            ログアウト
-          </Button>
+          <form action={logoutAction}>
+            <Button type="submit" variant="outlined">
+              ログアウト
+            </Button>
+          </form>
         </Box>
 
         <Paper elevation={2} sx={{ p: 3, mb: 3 }}>

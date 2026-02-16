@@ -1,10 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { useMutation } from '@apollo/client';
-import Cookies from 'js-cookie';
 import {
   Container,
   Paper,
@@ -16,19 +13,16 @@ import {
   Link as MuiLink,
 } from '@mui/material';
 import Link from 'next/link';
-import { REGISTER_MUTATION } from '@/graphql/mutations/auth';
-import type { RegisterMutation, RegisterMutationVariables, RegisterInput } from './types';
-import { useApolloClient } from '@apollo/client';  
+import { registerAction } from '../actions/auth';
+import type { RegisterInput } from './types';
 
 interface RegisterFormData extends RegisterInput {
   confirmPassword: string;
 }
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const client = useApolloClient(); 
-  
+
   const {
     register,
     handleSubmit,
@@ -38,53 +32,13 @@ export default function RegisterPage() {
 
   const password = watch('password');
 
-  const [registerUser] = useMutation<RegisterMutation, RegisterMutationVariables>(REGISTER_MUTATION, {
-    onCompleted: async (data) => {
-      try {
-        // キャッシュをクリアして古いデータを除去
-        await client.clearStore();
-        
-        // Extract user data from fragment
-        const userData = data.register.user; 
-        
-        // Store token in cookie with 7 days expiration
-        Cookies.set('token', data.register.token, { 
-          expires: 7,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict'
-        });
-        // Store user data in cookie
-        Cookies.set('user', JSON.stringify(userData), { 
-          expires: 7,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict'
-        });
-        
-        // ページ遷移前に少し待機してキャッシュクリアを完了させる
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 100);
-      } catch (error) {
-        console.error('Error during registration completion:', error);
-        router.push('/dashboard');
-      }
-    },
-    onError: (error) => {
-      setError(error.message);
-    },
-    // キャッシュからの読み取りを無効化
-    fetchPolicy: 'no-cache',
-    errorPolicy: 'all',
-  });
-
   const onSubmit = async (data: RegisterFormData) => {
     setError(null);
     const { confirmPassword, ...registerData } = data;
-    await registerUser({
-      variables: {
-        input: registerData,
-      },
-    });
+    const result = await registerAction(registerData);
+    if (result?.error) {
+      setError(result.error);
+    }
   };
 
   return (

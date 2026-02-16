@@ -1,22 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Typography, Button, Box, Paper } from '@mui/material';
 import Link from 'next/link';
-import Cookies from 'js-cookie';
 
 export default function HomePage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    const token = Cookies.get('token');
-    console.log('Token:', token);
-    if (token) {
-      router.push('/dashboard');
-    }
-  }, [router]);
-
   return (
     
       <Box

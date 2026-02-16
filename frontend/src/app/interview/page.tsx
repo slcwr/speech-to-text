@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useMutation } from '@apollo/client';
 import {
   Box,
@@ -24,7 +24,6 @@ import AudioRecorder from '../../components/AudioRecorder';
 import InterviewAudioSession from '../../components/InterviewAudioSession';
 
 const InterviewPageContent: React.FC = () => {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId');
   
@@ -86,9 +85,9 @@ const InterviewPageContent: React.FC = () => {
 
   useEffect(() => {
     if (!sessionId) {
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     }
-  }, [sessionId, router]);
+  }, [sessionId]);
 
   const handleStartInterview = async () => {
     if (!sessionId) return;

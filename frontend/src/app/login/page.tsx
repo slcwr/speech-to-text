@@ -1,10 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { useMutation } from '@apollo/client';
-import Cookies from 'js-cookie';
 import {
   Container,
   Paper,
@@ -16,67 +13,24 @@ import {
   Link as MuiLink,
 } from '@mui/material';
 import Link from 'next/link';
-import { LOGIN_MUTATION } from '@/graphql/mutations/auth';
-import type { LoginMutation, LoginMutationVariables, LoginInput } from './types';
-import { useApolloClient } from '@apollo/client';  
+import { loginAction } from '../actions/auth';
+import type { LoginInput } from './types';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const client = useApolloClient(); 
-  
+
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>();
 
-  const [login] = useMutation<LoginMutation, LoginMutationVariables>(LOGIN_MUTATION, {
-    onCompleted: async (data) => {
-      try {
-        // キャッシュをクリアして古いデータを除去
-        await client.clearStore();
-        
-        // Extract user data 
-        const userData = data.login.user
-        
-        // Store token in cookie with 7 days expiration
-        Cookies.set('token', data.login.token, { 
-          expires: 7,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict'
-        });
-        // Store user data in cookie
-        Cookies.set('user', JSON.stringify(userData), { 
-          expires: 7,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict'
-        });
-        
-        // ページ遷移前に少し待機してキャッシュクリアを完了させる
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 100);
-      } catch (error) {
-        console.error('Error during login completion:', error);
-        router.push('/dashboard');
-      }
-    },
-    onError: (error) => {
-      setError(error.message);
-    },
-    // キャッシュからの読み取りを無効化
-    fetchPolicy: 'no-cache',
-    errorPolicy: 'all',
-  });
-
   const onSubmit = async (data: LoginInput) => {
     setError(null);
-    await login({
-      variables: {
-        input: data,
-      },
-    });
+    const result = await loginAction(data);
+    if (result?.error) {
+      setError(result.error);
+    }
   };
 
   return (

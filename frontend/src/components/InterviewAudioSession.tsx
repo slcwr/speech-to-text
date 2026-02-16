@@ -287,14 +287,14 @@ const InterviewAudioSession: React.FC<InterviewAudioSessionProps> = ({
       </Paper>
 
       {/* リアルタイム転写結果表示 */}
-      {transcription && (
+      {(isRecording || transcription) && (
         <Paper sx={{ p: 3, bgcolor: 'grey.50' }}>
           <Typography variant="h6" color="primary" gutterBottom>
             あなたの回答（リアルタイム転写）
           </Typography>
-          <Typography 
-            variant="body1" 
-            sx={{ 
+          <Typography
+            variant="body1"
+            sx={{
               lineHeight: 1.6,
               minHeight: 40,
               whiteSpace: 'pre-wrap',
@@ -302,17 +302,17 @@ const InterviewAudioSession: React.FC<InterviewAudioSessionProps> = ({
           >
             {transcription || '音声を録音すると、ここにリアルタイムで転写結果が表示されます...'}
           </Typography>
-          
+
           {isRecording && (
             <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box 
-                sx={{ 
-                  width: 8, 
-                  height: 8, 
-                  borderRadius: '50%', 
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
                   bgcolor: 'success.main',
                   animation: 'blink 1s infinite'
-                }} 
+                }}
               />
               <Typography variant="caption" color="success.main">
                 転写中...
