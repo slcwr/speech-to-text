@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@apollo/server": "^4.10.0",
+    "@as-integrations/express5": "^1.1.2",
     "@google-cloud/text-to-speech": "^6.2.0",
     "@google/generative-ai": "^0.24.1",
     "@nestjs/apollo": "^12.1.0",
